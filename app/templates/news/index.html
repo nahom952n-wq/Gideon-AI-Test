@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}News Outlets — {{ app_name }}{% endblock %}
+{% block page_title %}News Outlets{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="mb-1">News Outlets</h5>
+      <p class="text-muted mb-0">Manage feeds used for global, policy, and immigration updates.</p>
+    </div>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('sources.manage', focus='news') }}#add-news-source">
+      <i class="bi bi-plus-circle me-1"></i>Add news source
+    </a>
+  </div>
+  {% if sources %}
+  <div class="row g-3">
+    {% for source in sources %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100"><div class="card-body">
+        <div class="d-flex gap-2 align-items-center mb-2"><i class="bi bi-newspaper text-primary"></i><h6 class="mb-0">{{ source.name }}</h6></div>
+        <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ source.source_type | title }}</span>
+        {% if source.config.get('channel') %}<p class="small text-muted mt-2 mb-0">{{ source.config.get('channel') }}</p>{% endif %}
+        {% if source.config.get('url') %}<p class="small text-muted mt-2 mb-0 text-truncate">{{ source.config.get('url') }}</p>{% endif %}
+      </div></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="alert alert-info border-0 d-flex justify-content-between align-items-center gap-3">
+    <span><i class="bi bi-info-circle me-2"></i><strong>No news sources available</strong></span>
+    <a class="btn btn-sm btn-primary text-nowrap" href="{{ url_for('sources.manage', focus='news') }}#add-news-source">Add a new news source</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

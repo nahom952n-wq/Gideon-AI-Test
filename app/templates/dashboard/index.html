@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<div class="d-flex align-items-center gap-3">
+  <span class="text-muted small d-none d-md-inline">Focus:</span>
+  <form method="POST" action="{{ url_for('settings.set_focus') }}" class="d-inline">
+    <select name="focus" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:130px">
+      <option value="mixed" {% if focus == 'mixed' %}selected{% endif %}>All Types</option>
+      {% for t in opportunity_types if t != 'unknown' %}
+      <option value="{{ t }}" {% if focus == t %}selected{% endif %}>{{ opportunity_labels[t] }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="next" value="{{ request.url }}">
+  </form>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero / quick actions -->
+<div class="gideon-hero rounded-4 p-4 mt-3 mb-4">
+  <div class="d-flex flex-wrap align-items-center gap-3">
+    <div class="flex-grow-1">
+      <div class="hero-kicker mb-2"><i class="bi bi-bar-chart-line me-1"></i>OVERVIEW</div>
+      <h1 class="h3 mb-2 fw-bold">What needs your attention?</h1>
+      <p class="mb-0 small text-muted">
+        {{ stats.active_opportunities }} live {{ 'opportunities' if focus == 'mixed' else opportunity_labels[focus]|lower }},
+        {{ stats.total_applications }} tracked applications, {{ stats.pending_items }} items waiting to be processed.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ url_for('scholarships.list_view') }}" class="btn btn-gideon btn-sm"><i class="bi bi-search me-1"></i>Browse opportunities</a>
+      <a href="{{ url_for('sources.manage') }}" class="btn btn-gideon-outline btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Sources &amp; sync</a>
+      <a href="{{ url_for('chat.index') }}" class="btn btn-gideon-outline btn-sm"><i class="bi bi-chat-dots me-1"></i>Ask AI</a>
+      <a href="{{ url_for('settings.index') }}#tab-telegram-account" class="btn btn-gideon-outline btn-sm"><i class="bi bi-key me-1"></i>Configure access</a>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3">
+  <div class="col-6 col-lg-3">
+    <div class="card glass-card stat-card accent-bar-orange h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="stat-icon rounded-3 chip-orange"><i class="bi bi-lightning-fill fs-4"></i></div>
+        <div><div class="fs-3 fw-bold">{{ stats.active_opportunities }}</div>
+          <div class="text-muted small">{% if focus == 'mixed' %}Live opportunities{% else %}{{ opportunity_labels[focus] }}{% endif %}</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card glass-card stat-card accent-bar-red h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="stat-icon rounded-3 chip-red"><i class="bi bi-alarm-fill fs-4"></i></div>
+        <div><div class="fs-3 fw-bold">{{ upcoming|length }}</div>
+          <div class="text-muted small">Deadlines ahead</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card glass-card stat-card accent-bar-blue h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="stat-icon rounded-3 chip-blue"><i class="bi bi-kanban-fill fs-4"></i></div>
+        <div><div class="fs-3 fw-bold">{{ stats.total_applications }}</div>
+          <div class="text-muted small">Tracked applications</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="card glass-card stat-card accent-bar-white h-100 border-0 shadow-sm">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="stat-icon rounded-3 chip-neutral"><i class="bi bi-inboxes-fill fs-4"></i></div>
+        <div><div class="fs-3 fw-bold">{{ stats.pending_items }}</div>
+          <div class="text-muted small">Queued for AI</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not system.telegram or not system.ai_keys or system.active_sources == 0 %}
+<div class="card glass-card dashboard-attention border-0 shadow-sm mt-3 mb-4">
+  <div class="card-body">
+    <div class="attention-title fw-semibold mb-2"><i class="bi bi-exclamation-circle me-2"></i>Setup checklist</div>
+    <div class="d-flex flex-wrap gap-2 small">
+      {% if not system.telegram %}<a class="btn btn-sm btn-gideon-outline" href="{{ url_for('settings.index') }}#tab-telegram-account"><i class="bi bi-telegram me-1"></i>Add Telegram credentials</a>{% endif %}
+      {% if not system.ai_keys %}<a class="btn btn-sm btn-gideon-outline" href="{{ url_for('settings.index') }}#tab-ai-providers"><i class="bi bi-cpu me-1"></i>Add an AI provider key</a>{% endif %}
+      {% if system.active_sources == 0 %}<a class="btn btn-sm btn-gideon-outline" href="{{ url_for('sources.manage') }}"><i class="bi bi-plus-circle me-1"></i>Add a source</a>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+  <div><div class="hero-kicker">LATEST</div><h2 class="h5 mb-0">Latest opportunities</h2></div>
+  <span class="badge chip-ok"><i class="bi bi-globe2 me-1"></i>Internet-connected</span>
+</div>
+<div class="row g-3 mt-1">
+  <!-- Latest opportunities -->
+  <div class="col-lg-7">
+    <div class="card glass-card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <strong><i class="bi bi-stars me-2 accent-orange"></i>Latest opportunities</strong>
+        <a class="small text-decoration-none" href="{{ url_for('scholarships.list_view') }}">View all</a>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for o in recent_opportunities %}
+        <a class="list-group-item list-group-item-action d-flex gap-3 align-items-start"
+           href="{{ url_for('scholarships.detail', opportunity_id=o.id) }}">
+          <i class="bi {{ o.type_icon }} fs-5 accent-orange mt-1"></i>
+          <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold text-truncate">{{ o.title or 'Untitled opportunity' }}</div>
+            <div class="small text-muted text-truncate">
+              {{ o.organization or 'Unknown organization' }}{% if o.country %} · {{ o.country }}{% endif %}
+            </div>
+          </div>
+          <div class="text-end small">
+            <span class="badge chip-neutral">{{ o.type_label }}</span>
+            {% if o.deadline %}<div class="text-muted mt-1">{{ o.deadline.strftime('%d %b %Y') }}</div>{% endif %}
+          </div>
+        </a>
+        {% else %}
+        <div class="list-group-item text-muted small py-4 text-center">
+          <div class="empty-state"><div class="empty-icon"><i class="bi bi-search"></i></div><h6>No opportunities yet</h6><p>Connect a source to start collecting opportunities from Telegram or another feed.</p><a class="btn btn-sm btn-gideon" href="{{ url_for('sources.manage') }}"><i class="bi bi-plus-circle me-1"></i>Add a source</a></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <!-- Deadlines -->
+    <div class="card glass-card border-0 shadow-sm mb-3">
+      <div class="card-header bg-transparent"><strong><i class="bi bi-alarm me-2 accent-red"></i>Upcoming deadlines</strong></div>
+      <div class="list-group list-group-flush">
+        {% for o in upcoming %}
+        <a class="list-group-item list-group-item-action d-flex justify-content-between gap-2"
+           href="{{ url_for('scholarships.detail', opportunity_id=o.id) }}">
+          <span class="text-truncate small">{{ o.title or 'Untitled' }}</span>
+          <span class="badge {{ 'chip-red' if (o.days_until_deadline or 99) <= 7 else 'chip-orange' }} flex-shrink-0">
+            {{ o.days_until_deadline }}d
+          </span>
+        </a>
+        {% else %}
+        <div class="empty-state py-4"><div class="empty-icon"><i class="bi bi-calendar2-check"></i></div><h6>No upcoming deadlines</h6><p>Deadlines will appear here as opportunities are collected.</p></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- System status -->
+    <div class="card glass-card border-0 shadow-sm">
+      <div class="card-header bg-transparent"><strong><i class="bi bi-activity me-2 accent-orange"></i>System status</strong></div>
+      <div class="card-body small">
+        <div class="d-flex justify-content-between py-1">
+          <span>Telegram credentials</span>
+          {% if system.telegram %}<span class="badge chip-ok">Configured</span>
+          {% else %}<span class="badge chip-red">Missing — <a class="text-reset" href="{{ url_for('settings.index') }}#tab-telegram-account">add now</a></span>{% endif %}
+        </div>
+        <div class="d-flex justify-content-between py-1">
+          <span>AI providers</span>
+          {% if system.ai_keys %}<span class="badge chip-ok">{{ system.ai_keys|join(', ') }}</span>
+          {% else %}<span class="badge chip-red">No keys — <a class="text-reset" href="{{ url_for('settings.index') }}#tab-ai-providers">add now</a></span>{% endif %}
+        </div>
+        <div class="d-flex justify-content-between py-1"><span>Active sources</span><span class="badge chip-neutral">{{ system.active_sources }}</span></div>
+        <div class="d-flex justify-content-between py-1"><span>Queued raw items</span><span class="badge chip-neutral">{{ system.pending_items }}</span></div>
+        <p class="text-muted mb-0 mt-2"><i class="bi bi-globe2 me-1"></i>Running locally still uses the internet for AI &amp; Telegram APIs.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if focus == 'mixed' and type_counts %}
+<div class="card glass-card border-0 shadow-sm mt-3">
+  <div class="card-body d-flex flex-wrap gap-2">
+    {% for t, count in type_counts.items() %}
+      <span class="badge chip-neutral">{{ opportunity_labels.get(t, t|title) }} · {{ count }}</span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

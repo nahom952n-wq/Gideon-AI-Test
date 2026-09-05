@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block title %}Settings — {{ app_name }}{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% macro status_badge(status) %}
+  {% if status == "connected" %}
+    <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Connected</span>
+  {% elif status == "missing_key" %}
+    <span class="badge bg-warning-subtle text-warning"><i class="bi bi-key me-1"></i>Not configured</span>
+  {% elif status == "disabled" %}
+    <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-pause-circle me-1"></i>Disabled</span>
+  {% else %}
+    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-exclamation-circle me-1"></i>{{ status|replace("_", " ")|title }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="settings-intro mb-4">
+    <div class="settings-intro-icon"><i class="bi bi-sliders2-vertical"></i></div>
+    <div><div class="hero-kicker">CONFIGURATION</div><h1 class="h3 mb-1">Settings</h1><p class="text-muted mb-0">Save the credentials Gideon needs. Start with Telegram or an AI provider.</p></div>
+  </div>
+
+  <ul class="nav nav-tabs settings-main-tabs mb-3" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-telegram-account" type="button"><i class="bi bi-telegram me-2"></i>Telegram Credentials</button></li>
+    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ai-providers" type="button"><i class="bi bi-cpu me-2"></i>AI Providers &amp; API Keys</button></li>
+  </ul>
+  <div class="advanced-settings mb-4">
+    <button class="btn btn-sm advanced-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#advancedSettings" aria-expanded="false" aria-controls="advancedSettings"><i class="bi bi-chevron-right me-2"></i>Advanced settings <span class="text-muted ms-1">Integrations, Telegram bot, pipeline</span></button>
+    <div class="collapse" id="advancedSettings">
+      <ul class="nav nav-pills settings-advanced-tabs mt-3" role="tablist">
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-integrations" type="button"><i class="bi bi-plug me-1"></i>Integrations</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-telegram-bot" type="button"><i class="bi bi-robot me-1"></i>Telegram Bot{% if telegram_bot.running %} <span class="badge chip-ok">LIVE</span>{% endif %}</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-pipeline" type="button"><i class="bi bi-sliders me-1"></i>Pipeline &amp; Focus</button></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tab-content">
+    <!-- ===== Telegram credentials ===== -->
+    <div class="tab-pane fade show active" id="tab-telegram-account">
+      <div class="settings-callout settings-callout-orange small d-flex gap-2"><i class="bi bi-info-circle"></i><div><strong>Enter Telegram credentials here.</strong> API ID, API Hash, phone number, and Bot Token are saved in Gideon's encrypted database. Gideon still connects to the internet for Telegram and AI services when running locally.</div></div>
+
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card border-0 shadow-sm h-100 accent-bar-orange">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+              <strong><i class="bi bi-person-badge me-2 accent-orange"></i>Telegram User Account (channel monitoring)</strong>
+              <span class="integration-status">{{ status_badge(integrations.telegram.status) }}</span>
+            </div>
+            <div class="card-body">
+              <form method="post" action="{{ url_for('settings.save_telegram_user') }}">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold" for="tg-api-id">1. Telegram API ID</label>
+                  <input id="tg-api-id" class="form-control font-monospace" name="api_id" value="{{ telegram_user.api_id }}" placeholder="e.g. 1234567" autocomplete="off">
+                  <div class="form-text">Numeric <code>App api_id</code> from my.telegram.org/apps</div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold" for="tg-api-hash">2. Telegram API Hash</label>
+                  <div class="input-group">
+                    <input id="tg-api-hash" type="password" class="form-control font-monospace" name="api_hash" value="{{ telegram_user.api_hash }}" placeholder="32-character hash" autocomplete="off">
+                    <button class="btn btn-outline-secondary toggle-secret" type="button" data-target="tg-api-hash"><i class="bi bi-eye"></i></button>
+                  </div>
+                  <div class="form-text">The <code>App api_hash</code> shown next to your api_id</div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold" for="tg-phone">3. Phone number</label>
+                  <input id="tg-phone" class="form-control font-monospace" name="phone" value="{{ telegram_user.phone }}" placeholder="+251900000000" autocomplete="off">
+                  <div class="form-text">International format, including the country code</div>
+                </div>
+                <button class="btn btn-gideon" type="submit"><i class="bi bi-save me-1"></i>Save Telegram credentials</button>
+                <a class="btn btn-gideon-outline" href="{{ url_for('sources.telegram_setup') }}"><i class="bi bi-box-arrow-in-right me-1"></i>Login &amp; verify code</a>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card border-0 shadow-sm h-100 accent-bar-red">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+              <strong><i class="bi bi-robot me-2 accent-red"></i>4. Telegram Bot Token</strong>
+              <span>{{ status_badge(telegram_bot.status) }}</span>
+            </div>
+            <div class="card-body">
+              <form method="post" action="{{ url_for('settings.save_telegram_bot') }}">
+                <label class="form-label fw-semibold" for="bot-token-main">Bot token from @BotFather</label>
+                <div class="input-group mb-2">
+                  <input id="bot-token-main" class="form-control font-monospace" type="password" name="bot_token" autocomplete="off"
+                         placeholder="{{ 'Saved — leave blank to keep' if telegram_bot_token_saved else '123456:ABC-DEF...' }}">
+                  <button class="btn btn-outline-secondary toggle-secret" type="button" data-target="bot-token-main"><i class="bi bi-eye"></i></button>
+                </div>
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" role="switch" id="bot-enabled-main" name="enabled" value="true" {% if telegram_bot.enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="bot-enabled-main">Enable bot polling</label>
+                </div>
+                <button class="btn btn-gideon" type="submit"><i class="bi bi-save me-1"></i>Save &amp; apply</button>
+              </form>
+              <hr>
+              <p class="small text-muted mb-0">Get all four values at
+                <a href="https://my.telegram.org/apps" target="_blank" rel="noreferrer">my.telegram.org/apps</a> (API ID / hash) and
+                <a href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a> (bot token).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-integrations">
+      <div class="row g-3">
+        {% set integration_meta = {
+          "telegram": ("Telegram Userbot", "bi-telegram"),
+          "local_ai": ("Local AI", "bi-pc-display"),
+          "gemini": ("Google Gemini", "bi-google"),
+          "openai": ("OpenAI", "bi-stars"),
+          "anthropic": ("Anthropic Claude", "bi-cpu"),
+          "grok": ("xAI Grok", "bi-lightning-charge")
+        } %}
+        {% for name, info in integrations.items() %}
+          <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100" id="integration-{{ name }}">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="rounded-2 p-2 bg-primary-subtle"><i class="bi {{ integration_meta.get(name, (name, 'bi-plug'))[1] }} text-primary"></i></span>
+                    <strong>{{ integration_meta.get(name, (name, "bi-plug"))[0] }}</strong>
+                  </div>
+                  <span class="integration-status">{{ status_badge(info.status) }}</span>
+                </div>
+                <p class="small text-muted mb-2">{{ info.detail }}</p>
+                {% if info.model %}<code class="small">{{ info.model }}</code>{% endif %}
+                <button class="btn btn-sm btn-outline-secondary mt-3 probe-btn" data-name="{{ name }}"><i class="bi bi-arrow-clockwise me-1"></i>Re-check</button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-ai-providers">
+      <div class="settings-callout settings-callout-blue small"><i class="bi bi-shield-lock me-1"></i><strong>Enter AI keys here.</strong> Each provider has its own card. Keys are encrypted in Gideon's database and take effect immediately. Do not share screenshots of this page. Use <strong>Test</strong> before saving when you want to verify a connection.</div>
+      <div class="row g-3 mb-4">
+        {% for provider in providers %}
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+              <strong><i class="bi {{ provider.icon }} me-2 text-{{ provider.color }}"></i>{{ provider.label }}</strong>
+              {% if provider.has_key %}<span class="badge bg-success-subtle text-success">{{ "Saved" if provider.source == "database" else "From .env" }}</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Not set</span>{% endif %}
+            </div>
+            <div class="card-body">
+              <form method="post" action="{{ url_for('settings.save_api_key') }}">
+                <input type="hidden" name="provider" value="{{ provider.id }}">
+                <label class="form-label small">{{ provider.key_label }}</label>
+                <div class="input-group mb-3">
+                  <input id="key-{{ provider.id }}" class="form-control form-control-sm font-monospace" type="password" name="api_key" autocomplete="off" placeholder="{{ 'Leave blank to keep saved value' if provider.has_key else 'Enter value' }}">
+                  <button class="btn btn-sm btn-outline-secondary toggle-secret" type="button" data-target="key-{{ provider.id }}"><i class="bi bi-eye"></i></button>
+                  <button class="btn btn-sm btn-outline-primary test-provider" type="button" data-provider="{{ provider.id }}" data-key="key-{{ provider.id }}" data-model="model-{{ provider.id }}">Test</button>
+                </div>
+                {% for field in provider.extra_fields %}
+                  <label class="form-label small">{{ field.label }}</label>
+                  <select id="model-{{ provider.id }}" name="{{ field.name }}" class="form-select form-select-sm mb-2">
+                    <option value="">Use default ({{ field.placeholder }})</option>
+                    {% for model in field.recommended %}
+                      <option value="{{ model }}" {% if provider.extra_values.get(field.name) == model %}selected{% endif %}>{{ model }}</option>
+                    {% endfor %}
+                    {% if provider.extra_values.get(field.name) and provider.extra_values.get(field.name) not in field.recommended %}
+                      <option value="{{ provider.extra_values.get(field.name) }}" selected>{{ provider.extra_values.get(field.name) }}</option>
+                    {% endif %}
+                  </select>
+                {% endfor %}
+                <div id="provider-result-{{ provider.id }}" class="small mb-2"></div>
+                <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-save me-1"></i>Save</button>
+                {% if provider.source == "database" %}
+                  <button class="btn btn-sm btn-outline-danger clear-provider" type="button" data-provider="{{ provider.id }}">Clear saved key</button>
+                {% endif %}
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent"><strong><i class="bi bi-diagram-3 me-2"></i>Capability routing</strong></div>
+        <div class="card-body">
+          <form method="post" action="{{ url_for('settings.save_capability_map') }}">
+            <div class="row g-3">
+              {% for capability in capabilities %}
+              <div class="col-md-6">
+                <label class="form-label small">{{ capability|replace("_", " ")|title }}</label>
+                <select class="form-select form-select-sm" name="capability_{{ capability }}">
+                  {% for provider in all_providers %}
+                    <option value="{{ provider }}" {% if capability_map.get(capability) == provider %}selected{% endif %}>{{ provider|replace("_", " ")|title }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-sm btn-primary mt-3" type="submit"><i class="bi bi-save me-1"></i>Save routing</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-telegram-bot">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div><h5 class="mb-1">Telegram Bot API</h5><p class="text-muted small mb-0">{{ telegram_bot.detail }}</p></div>
+          <span id="telegram-bot-status">{{ status_badge(telegram_bot.status) }}</span>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <form method="post" action="{{ url_for('settings.save_telegram_bot') }}">
+                <label class="form-label">Bot token</label>
+                <div class="input-group mb-2">
+                  <input id="bot-token" class="form-control font-monospace" type="password" name="bot_token" autocomplete="off" placeholder="Leave blank to keep saved token">
+                  <button class="btn btn-outline-secondary toggle-secret" type="button" data-target="bot-token"><i class="bi bi-eye"></i></button>
+                  <button id="test-bot" class="btn btn-outline-primary" type="button">Test</button>
+                </div>
+                <div id="bot-result" class="small mb-3"></div>
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" role="switch" id="bot-enabled" name="enabled" value="true" {% if telegram_bot.enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="bot-enabled">Enable bot polling</label>
+                </div>
+                <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1"></i>Save & Apply</button>
+              </form>
+              <p class="text-muted small mt-3 mb-0">Create a token with <a href="https://t.me/BotFather" target="_blank" rel="noreferrer">@BotFather</a>. The bot shares Gideon's database and chat service.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <h6>Commands</h6>
+              <ul class="small text-muted mb-0">
+                <li><code>/start</code> and <code>/help</code> — get started</li>
+                <li><code>/opportunities</code> — latest opportunities</li>
+                <li><code>/search &lt;term&gt;</code> — search the database</li>
+                <li>Any message — use Gideon AI chat</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-pipeline">
+      <div class="row g-3">
+        <div class="col-lg-5">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h6>Dashboard focus</h6>
+              <form method="post" action="{{ url_for('settings.set_focus') }}">
+                <select name="focus" class="form-select mb-3">
+                  {% for value in ["mixed"] + ["scholarship", "internship", "fellowship", "grant", "competition", "research", "job", "conference"] %}
+                    <option value="{{ value }}" {% if pipeline_cfg.focus_mode == value %}selected{% endif %}>{{ value|title }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-primary btn-sm" type="submit">Apply focus</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h6>Pipeline configuration</h6>
+              <dl class="row small mb-0">
+                <dt class="col-7 text-muted">Processing version</dt><dd class="col-5"><code>{{ pipeline_cfg.processing_version }}</code></dd>
+                <dt class="col-7 text-muted">Enrichment rate</dt><dd class="col-5">{{ pipeline_cfg.enrichment_rate }} items/run</dd>
+                <dt class="col-7 text-muted">Local confidence threshold</dt><dd class="col-5">{{ (pipeline_cfg.confidence_threshold * 100)|int }}%</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const jsonRequest = (url, body) => fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  }).then(response => response.json());
+
+  document.querySelectorAll(".toggle-secret").forEach(button => {
+    button.addEventListener("click", () => {
+      const input = document.getElementById(button.dataset.target);
+      input.type = input.type === "password" ? "text" : "password";
+      button.querySelector("i").classList.toggle("bi-eye");
+      button.querySelector("i").classList.toggle("bi-eye-slash");
+    });
+  });
+
+  document.querySelectorAll(".probe-btn").forEach(button => {
+    button.addEventListener("click", async () => {
+      const name = button.dataset.name;
+      button.disabled = true;
+      const result = await fetch("{{ url_for('settings.probe_integration') }}?name=" + encodeURIComponent(name)).then(r => r.json());
+      const status = document.querySelector("#integration-" + name + " .integration-status");
+      if (status) status.innerHTML = result.status;
+      button.disabled = false;
+    });
+  });
+
+  document.querySelectorAll(".test-provider").forEach(button => {
+    button.addEventListener("click", async () => {
+      const result = document.getElementById("provider-result-" + button.dataset.provider);
+      result.textContent = "Testing…";
+      const response = await jsonRequest("{{ url_for('settings.test_api_key') }}", {
+        provider: button.dataset.provider,
+        api_key: document.getElementById(button.dataset.key).value,
+        model: document.getElementById(button.dataset.model)?.value || ""
+      });
+      result.className = "small mb-2 " + (response.ok ? "text-success" : "text-danger");
+      result.textContent = response.message;
+    });
+  });
+
+  document.querySelectorAll(".clear-provider").forEach(button => {
+    button.addEventListener("click", async () => {
+      const body = new URLSearchParams({provider: button.dataset.provider});
+      await fetch("{{ url_for('settings.clear_api_key') }}", {method: "POST", body});
+      window.location.reload();
+    });
+  });
+
+  const testBot = document.getElementById("test-bot");
+  if (testBot) testBot.addEventListener("click", async () => {
+    const result = document.getElementById("bot-result");
+    const response = await jsonRequest("{{ url_for('settings.test_telegram_bot') }}", {
+      token: document.getElementById("bot-token").value
+    });
+    result.className = "small mb-3 " + (response.ok ? "text-success" : "text-danger");
+    result.textContent = response.message;
+  });
+})();
+</script>
+{% endblock %}

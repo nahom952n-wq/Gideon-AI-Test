@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}AI Chat — {{ app_name }}{% endblock %}
+{% block page_title %}AI Chat Assistant{% endblock %}
+
+{% block content %}
+<div class="row g-3 mt-1" style="height: calc(100vh - 180px)">
+  <div class="col-lg-3 d-none d-lg-block">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
+        <small class="fw-semibold text-muted">Recent Sessions</small>
+        <button class="btn btn-sm btn-outline-primary" onclick="newSession()">
+          <i class="bi bi-plus"></i>
+        </button>
+      </div>
+      <div class="card-body p-0 overflow-auto">
+        {% for session in sessions %}
+        <div class="list-group-item list-group-item-action px-3 py-2 small d-flex gap-2 align-items-start
+             {% if active_session and session.id == active_session.id %}active{% endif %}">
+          <a href="{{ url_for('chat.index', session_id=session.id) }}" class="text-reset text-decoration-none flex-grow-1">
+            {{ session.title or 'Untitled session' }}
+            <div class="text-muted" style="font-size:0.75rem">{{ session.last_active_at.strftime('%d %b %H:%M') }}</div>
+          </a>
+          <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                  title="Delete session" aria-label="Delete session"
+                  onclick="deleteSession({{ session.id }}, event)">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-9 d-flex flex-column h-100">
+    <div class="card border-0 shadow-sm flex-grow-1 d-flex flex-column">
+      <!-- Messages -->
+      <div class="card-body flex-grow-1 overflow-auto" id="chatMessages" style="max-height: calc(100vh - 300px)">
+        {% if not messages %}
+        <div class="empty-state py-4" id="emptyState">
+          <div class="empty-icon"><i class="bi bi-chat-dots"></i></div>
+          <h6>Ask about your opportunities</h6>
+          <p>I search your Gideon database first, then use general knowledge when needed.</p>
+          <div class="mt-4 d-flex flex-wrap justify-content-center gap-2">
+            {% for suggestion in ['Find scholarships in Germany', 'Computer Science opportunities', 'What deadlines are this month?', 'Show full-funding scholarships'] %}
+            <button class="btn btn-sm btn-outline-secondary" onclick="sendSuggestion('{{ suggestion }}')">{{ suggestion }}</button>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+          {% for msg in messages %}
+          <div class="d-flex mb-3 {% if msg.role == 'user' %}justify-content-end{% endif %}">
+            <div class="chat-bubble {% if msg.role == 'user' %}chat-user{% else %}chat-ai{% endif %}">
+              {% if msg.role == 'assistant' %}
+                <div class="chat-markdown">{{ markdown_to_html(msg.content) | safe }}</div>
+              {% else %}
+                {{ msg.content }}
+              {% endif %}
+              {% if msg.role == 'assistant' and msg.source == 'general' %}
+              <div class="mt-1 pt-1 border-top border-opacity-25">
+                <small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>General knowledge</small>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% endif %}
+        <div id="typingIndicator" style="display:none" class="d-flex mb-3">
+          <div class="chat-bubble chat-ai">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="card-footer bg-transparent border-top p-3">
+        <form id="chatForm" class="d-flex gap-2">
+          <input type="text" id="chatInput" class="form-control"
+                 placeholder="Ask about scholarships in your database…" autocomplete="off">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-send"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentSessionId = {% if active_session %}{{ active_session.id }}{% else %}null{% endif %};
+
+function scrollToBottom() {
+  const el = document.getElementById('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendMessage(role, content, source) {
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.remove();
+  const container = document.getElementById('chatMessages');
+  const indicator = document.getElementById('typingIndicator');
+  const div = document.createElement('div');
+  div.className = `d-flex mb-3 ${role === 'user' ? 'justify-content-end' : ''}`;
+  let extra = '';
+  if (role === 'assistant' && source === 'general') {
+    extra = `<div class="mt-1 pt-1 border-top border-opacity-25"><small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>General knowledge</small></div>`;
+  }
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${role === 'user' ? 'chat-user' : 'chat-ai'}`;
+  if (role === 'assistant') {
+    bubble.innerHTML = content;
+  } else {
+    bubble.textContent = content;
+  }
+  if (extra) bubble.insertAdjacentHTML('beforeend', extra);
+  div.appendChild(bubble);
+  container.insertBefore(div, indicator);
+  scrollToBottom();
+}
+
+document.getElementById('chatForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  appendMessage('user', message, null);
+  input.value = '';
+
+  document.getElementById('typingIndicator').style.display = 'flex';
+  scrollToBottom();
+
+  try {
+    const res = await fetch('/chat/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message, session_id: currentSessionId})
+    });
+    const data = await res.json();
+    document.getElementById('typingIndicator').style.display = 'none';
+    if (data.error) {
+      appendMessage('assistant', '⚠ ' + data.error, 'general');
+    } else {
+      currentSessionId = data.session_id;
+      appendMessage('assistant', data.response_html || data.response, data.source);
+    }
+  } catch (err) {
+    document.getElementById('typingIndicator').style.display = 'none';
+    appendMessage('assistant', 'Connection error. Please try again.', 'general');
+  }
+});
+
+function sendSuggestion(text) {
+  document.getElementById('chatInput').value = text;
+  document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+}
+
+function newSession() {
+  currentSessionId = null;
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-chat-dots fs-1 d-block mb-3 opacity-25"></i><p>New session started. Ask me anything.</p></div><div id="typingIndicator" style="display:none" class="d-flex mb-3"><div class="chat-bubble chat-ai"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>';
+}
+
+async function deleteSession(sessionId, event) {
+  event.preventDefault();
+  event.stopPropagation();
+  if (!confirm('Delete this chat session and its messages?')) return;
+
+  const response = await fetch(`/chat/${sessionId}/delete`, {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+  });
+  if (!response.ok) {
+    alert('Could not delete the chat session.');
+    return;
+  }
+  if (currentSessionId === sessionId) {
+    window.location.href = '/chat/';
+  } else {
+    event.currentTarget.closest('.list-group-item').remove();
+  }
+}
+
+scrollToBottom();
+</script>
+{% endblock %}

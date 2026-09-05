@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Tailored Feed — {{ app_name }}{% endblock %}
+{% block page_title %}Tailored Feed{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="mb-1">For You</h5>
+      <p class="text-muted mb-0">Opportunities ranked against your saved profile preferences.</p>
+    </div>
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('profile.edit') }}">
+      <i class="bi bi-sliders me-1"></i>Update preferences
+    </a>
+  </div>
+
+  {% if recommendations %}
+  <h6 class="fw-semibold mb-2"><i class="bi bi-stars me-1 text-primary"></i>Recommended opportunities</h6>
+  <div class="row g-3 mb-4">
+    {% for item in recommendations %}
+    {% set opportunity = item.opportunity %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <span class="badge bg-{{ opportunity.type_color }}-subtle text-{{ opportunity.type_color }}">{{ opportunity.type_label }}</span>
+            <span class="small text-muted">{{ item.score }} match</span>
+          </div>
+          <h6 class="fw-semibold">{{ opportunity.title or 'Untitled opportunity' }}</h6>
+          <p class="text-muted small mb-2">{{ opportunity.organization or 'Unknown organization' }}{% if opportunity.country %} · {{ opportunity.country }}{% endif %}</p>
+          <p class="small flex-grow-1">{{ opportunity.summary or 'No summary available.' }}</p>
+          {% if item.reasons %}<div class="small text-primary mb-2">Matches: {{ item.reasons | join(', ') }}</div>{% endif %}
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('scholarships.detail', opportunity_id=opportunity.id) }}">View opportunity</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h6 class="fw-semibold mb-2"><i class="bi bi-globe-americas me-1 text-warning"></i>Global news and policy watch</h6>
+  {% if news %}
+  <div class="row g-3">
+    {% for item in news %}
+    {% set opportunity = item.opportunity %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <span class="badge bg-warning-subtle text-warning mb-2">Policy / News</span>
+          <h6 class="fw-semibold">{{ opportunity.title or 'Global update' }}</h6>
+          <p class="text-muted small">{{ opportunity.organization or 'Gideon sources' }}{% if opportunity.country %} · {{ opportunity.country }}{% endif %}</p>
+          <p class="small mb-0">{{ opportunity.summary or 'Review this update for potential impact on international students and opportunities.' }}</p>
+          <a class="btn btn-sm btn-link px-0 mt-2" href="{{ url_for('scholarships.detail', opportunity_id=opportunity.id) }}">Read update</a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="alert alert-secondary">No policy or immigration updates are currently available.</div>
+  {% endif %}
+
+  {% if not recommendations and not news %}
+  <div class="empty-state card mt-3"><div class="empty-icon"><i class="bi bi-stars"></i></div><h6>Your feed is waiting</h6><p>Save countries, majors, and degree levels in your profile to personalize recommendations.</p><a href="{{ url_for('profile.edit') }}" class="btn btn-primary btn-sm">Set preferences</a></div>
+  {% endif %}
+</div>
+{% endblock %}

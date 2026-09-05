@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Application Tracker — {{ app_name }}{% endblock %}
+{% block page_title %}Application Tracker{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+  <!-- Status filter tabs -->
+  <ul class="nav nav-pills mb-4 flex-wrap gap-1">
+    <li class="nav-item">
+      <a href="{{ url_for('tracker.index') }}"
+         class="nav-link {% if not status_filter %}active{% endif %}">All</a>
+    </li>
+    {% for status in statuses %}
+    <li class="nav-item">
+      <a href="{{ url_for('tracker.index', status=status) }}"
+         class="nav-link {% if status_filter == status %}active{% endif %}">
+        {{ status | title }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if applications %}
+  <div class="row g-3">
+    {% for app in applications %}
+    <div class="col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="badge bg-{{ app.status_display[1] }}-subtle text-{{ app.status_display[1] }}">
+              {{ app.status_display[0] }}
+            </span>
+            {% set item = app.opportunity or app.scholarship %}
+            {% if item.deadline %}
+            <small class="text-muted">Due {{ item.deadline.strftime('%d %b %Y') }}</small>
+            {% endif %}
+          </div>
+          <h6 class="fw-semibold mb-1">{{ item.title if app.opportunity else (item.name or 'Unnamed Scholarship') }}</h6>
+          <p class="text-muted small">
+            {% if app.opportunity %}{{ item.organization or '' }}{% else %}{{ item.university or '' }}{% endif %}
+            {% if item.country %} &bull; {{ item.country }}{% endif %}
+          </p>
+          {% if app.notes %}
+          <p class="small text-muted fst-italic border-start border-3 ps-2 mb-2">{{ app.notes[:150] }}{% if app.notes|length > 150 %}…{% endif %}</p>
+          {% endif %}
+          <div class="mt-auto pt-2 border-top">
+            <form method="POST" action="{{ url_for('tracker.update', app_id=app.id) }}" class="d-flex gap-2">
+              <select name="status" class="form-select form-select-sm flex-grow-1">
+                {% for status in statuses %}
+                <option value="{{ status }}" {% if status == app.status %}selected{% endif %}>{{ status | title }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-sm btn-primary">Update</button>
+            </form>
+            {% if app.opportunity_id %}
+            <a href="{{ url_for('scholarships.detail', opportunity_id=app.opportunity_id) }}"
+               class="btn btn-sm btn-link text-muted p-0 mt-1">View opportunity</a>
+            {% else %}
+            <a href="{{ url_for('scholarships.detail', opportunity_id=app.scholarship_id) }}"
+               class="btn btn-sm btn-link text-muted p-0 mt-1">View scholarship</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state card"><div class="empty-icon"><i class="bi bi-kanban"></i></div><h6>No applications tracked</h6><p>Save an opportunity to follow its progress, notes, and deadline from one place.</p><a href="{{ url_for('scholarships.list_view') }}" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Browse opportunities</a></div>
+  {% endif %}
+</div>
+{% endblock %}

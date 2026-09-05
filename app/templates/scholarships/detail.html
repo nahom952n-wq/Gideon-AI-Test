@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ opportunity.title or 'Opportunity' }} — {{ app_name }}{% endblock %}
+{% block page_title %}{{ opportunity.type_label }} Detail{% endblock %}
+
+{% block topbar_actions %}
+<form method="POST" action="{{ url_for('scholarships.track', opportunity_id=opportunity.id) }}">
+  <button type="submit" class="btn btn-sm btn-primary">
+    <i class="bi bi-kanban me-1"></i>Move to Tracker
+  </button>
+</form>
+<form method="POST" action="{{ url_for('scholarships.reanalyze', opportunity_id=opportunity.id) }}"
+      onsubmit="return confirm('Re-analyze this opportunity with current AI pipeline?')">
+  <button type="submit" class="btn btn-sm btn-outline-warning">
+    <i class="bi bi-arrow-repeat me-1"></i>Re-analyze
+  </button>
+</form>
+<form method="POST" action="{{ url_for('scholarships.delete', opportunity_id=opportunity.id) }}"
+      onsubmit="return confirm('Permanently delete this opportunity and its cached source item?')">
+  <button type="submit" class="btn btn-sm btn-outline-danger">
+    <i class="bi bi-trash3 me-1"></i>Delete
+  </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mt-1">
+
+  <!-- Main content -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+
+        <!-- Type badge + title -->
+        <div class="mb-2">
+          <span class="badge bg-{{ opportunity.type_color }}-subtle text-{{ opportunity.type_color }} rounded-pill mb-2"
+                style="font-size:.75rem">
+            <i class="bi {{ opportunity.type_icon }} me-1"></i>{{ opportunity.type_label }}
+          </span>
+        </div>
+        <h4 class="fw-bold mb-1">{{ opportunity.title or 'Untitled Opportunity' }}</h4>
+        {% if opportunity.organization %}
+        <p class="text-muted mb-3">
+          <i class="bi bi-building me-1"></i>{{ opportunity.organization }}
+        </p>
+        {% endif %}
+        {% if raw_item and raw_item.source %}
+        {% set source_config = raw_item.source.config %}
+        {% set raw_metadata = raw_item.extra_metadata %}
+        <div class="alert alert-secondary border-0 py-2 small">
+          <i class="bi bi-telegram me-1"></i>
+          Harvested from <strong>{{ raw_item.source.name }}</strong>
+          {% if source_config.get('channel') or raw_metadata.get('channel_username') or raw_metadata.get('channel') %}
+            <span class="text-muted">({{ source_config.get('channel') or raw_metadata.get('channel_username') or raw_metadata.get('channel') }})</span>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if opportunity.summary %}
+        <div class="alert alert-info border-0">
+          <strong>Summary:</strong> {{ opportunity.summary }}
+        </div>
+        {% endif %}
+
+        <!-- Core fields grid -->
+        <div class="row g-3 mb-4">
+          {% macro info_cell(icon, label, value) %}
+          {% if value %}
+          <div class="col-sm-6">
+            <div class="d-flex gap-2">
+              <i class="bi bi-{{ icon }} text-primary mt-1 flex-shrink-0"></i>
+              <div>
+                <div class="text-muted small">{{ label }}</div>
+                <div class="fw-semibold">{{ value }}</div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {% endmacro %}
+
+          {{ info_cell('geo-alt', 'Country', opportunity.country) }}
+          {{ info_cell('pin-map', 'Location', opportunity.location) }}
+          {{ info_cell('calendar-event', 'Deadline',
+              opportunity.deadline.strftime('%d %B %Y') if opportunity.deadline else opportunity.deadline_raw) }}
+          {{ info_cell('calendar-check', 'Start Date',
+              opportunity.start_date.strftime('%d %B %Y') if opportunity.start_date else None) }}
+        </div>
+
+        {% if opportunity.eligibility_text %}
+        <h6 class="fw-semibold">Eligibility</h6>
+        <p class="text-muted">{{ opportunity.eligibility_text }}</p>
+        {% endif %}
+
+        <!-- Type-specific extra fields -->
+        {% set extras = opportunity.extra_fields %}
+        {% if extras %}
+        <h6 class="fw-semibold">Additional Details</h6>
+        <div class="row g-2 mb-4">
+          {% for k, v in extras.items() %}
+          {% if v and v not in ('Unknown', 'unknown', '') %}
+          <div class="col-sm-6">
+            <div class="d-flex gap-2">
+              <i class="bi bi-info-circle text-secondary mt-1 flex-shrink-0"></i>
+              <div>
+                <div class="text-muted small">{{ k | replace('_', ' ') | title }}</div>
+                <div class="fw-semibold">{{ v }}</div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if opportunity.keywords %}
+        <h6 class="fw-semibold">Keywords</h6>
+        <div class="d-flex flex-wrap gap-1 mb-3">
+          {% for k in opportunity.keywords %}
+          <a href="{{ url_for('scholarships.list_view', q=k) }}"
+             class="badge bg-light text-dark border text-decoration-none">{{ k }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if opportunity.tags %}
+        <h6 class="fw-semibold">Tags</h6>
+        <div class="d-flex flex-wrap gap-1">
+          {% for t in opportunity.tags %}
+          <span class="badge bg-secondary-subtle text-secondary">{{ t }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="col-lg-4">
+
+    <!-- Links -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3">Links</h6>
+        {% if opportunity.application_url %}
+        <a href="{{ opportunity.application_url }}" target="_blank" class="btn btn-primary w-100 mb-2">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Apply Now
+        </a>
+        {% endif %}
+        {% if opportunity.official_website %}
+        <a href="{{ opportunity.official_website }}" target="_blank" class="btn btn-outline-secondary w-100">
+          <i class="bi bi-globe me-1"></i>Official Website
+        </a>
+        {% endif %}
+        {% if not opportunity.application_url and not opportunity.official_website %}
+        <p class="text-muted small">No links extracted.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- AI pipeline info -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h6 class="fw-semibold mb-3">Pipeline Info</h6>
+        <dl class="row small mb-0">
+          <dt class="col-6 text-muted">Score</dt>
+          <dd class="col-6">
+            <div class="progress mb-1" style="height:6px">
+              <div class="progress-bar {% if opportunity.opportunity_score >= 70 %}bg-success{% elif opportunity.opportunity_score >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width:{{ opportunity.opportunity_score }}%"></div>
+            </div>
+            <small>{{ opportunity.opportunity_score }}/100</small>
+          </dd>
+          <dt class="col-6 text-muted">Confidence</dt>
+          <dd class="col-6">
+            <div class="progress mb-1" style="height:6px">
+              <div class="progress-bar {% if opportunity.ai_confidence > 0.7 %}bg-success{% elif opportunity.ai_confidence > 0.4 %}bg-warning{% else %}bg-danger{% endif %}"
+                   style="width:{{ (opportunity.ai_confidence * 100) | int }}%"></div>
+            </div>
+            <small>{{ (opportunity.ai_confidence * 100) | int }}%</small>
+          </dd>
+          <dt class="col-6 text-muted">Provider</dt>
+          <dd class="col-6">{{ opportunity.ai_provider or '—' }}</dd>
+          <dt class="col-6 text-muted">Pipeline ver.</dt>
+          <dd class="col-6">{{ opportunity.processing_version or '—' }}</dd>
+          <dt class="col-6 text-muted">Analyzed</dt>
+          <dd class="col-6">{{ opportunity.last_analyzed_at.strftime('%d %b %Y') if opportunity.last_analyzed_at else '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Raw AI output (collapsed) -->
+    {% if opportunity.raw_ai_output %}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-transparent py-2">
+        <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none w-100 text-start"
+                data-bs-toggle="collapse" data-bs-target="#rawAiOutput">
+          <i class="bi bi-code-slash me-1"></i>Raw AI Output
+        </button>
+      </div>
+      <div id="rawAiOutput" class="collapse">
+        <div class="card-body p-2">
+          <pre class="small text-muted mb-0" style="white-space:pre-wrap;max-height:300px;overflow-y:auto">{{ opportunity.raw_ai_output }}</pre>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Original message -->
+    {% if raw_item %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent py-2">
+        <button class="btn btn-sm btn-link text-muted p-0 text-decoration-none w-100 text-start"
+                data-bs-toggle="collapse" data-bs-target="#rawContent">
+          <i class="bi bi-chat-left-text me-1"></i>Original Message
+        </button>
+      </div>
+      <div id="rawContent" class="collapse">
+        <div class="card-body p-2">
+          <pre class="small text-muted original-text" style="white-space:pre-wrap;max-height:300px;overflow-y:auto">{{ raw_item.raw_content[:1000] if raw_item.raw_content else 'No raw content.' }}{% if raw_item.raw_content and raw_item.raw_content | length > 1000 %}…{% endif %}</pre>
+          <div class="d-flex gap-2 flex-wrap mt-2">
+            <span class="badge bg-light text-dark border">{{ raw_item.source.source_type if raw_item.source else '?' }}</span>
+            <span class="badge bg-light text-dark border">{{ raw_item.processing_status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

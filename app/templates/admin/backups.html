@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Backups — {{ app_name }}{% endblock %}
+{% block page_title %}Database Backups{% endblock %}
+
+{% block topbar_actions %}
+<form method="POST" action="{{ url_for('backups.create') }}"
+      onsubmit="return confirm('Create a backup of the current database?')">
+  <button type="submit" class="btn btn-sm btn-success">
+    <i class="bi bi-download me-1"></i>Create Backup
+  </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-3">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-archive me-2 text-primary"></i>Backup History
+        </h6>
+      </div>
+      <div class="card-body p-0">
+        {% if backups %}
+        <div class="list-group list-group-flush">
+          {% for backup in backups %}
+          <div class="list-group-item px-4 py-3 d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-semibold small">{{ backup.filename }}</div>
+              <small class="text-muted">{{ backup.created_at }} &bull; {{ backup.size_kb }} KB</small>
+            </div>
+            <form method="POST" action="{{ url_for('backups.restore', filename=backup.filename) }}"
+                  onsubmit="return confirm('Restore database from \'{{ backup.filename }}\'? Current data will be replaced.')">
+              <button type="submit" class="btn btn-sm btn-outline-warning">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="bi bi-archive fs-1 d-block mb-3 opacity-25"></i>
+          <p>No backups yet. Click "Create Backup" above to create your first one.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="alert alert-warning border-0 mt-3 small">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      <strong>Restore warning:</strong> Restoring a backup will overwrite your current database.
+      A safety copy is automatically saved as <code>scholarmind.pre_restore.db</code> before restore.
+    </div>
+  </div>
+</div>
+{% endblock %}

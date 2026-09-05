@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Opportunities — {{ app_name }}{% endblock %}
+{% block page_title %}Opportunities{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('scholarships.list_view') }}" class="btn btn-sm btn-outline-secondary">
+  <i class="bi bi-arrow-counterclockwise me-1"></i>Clear filters
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="page-intro d-flex flex-wrap justify-content-between align-items-end gap-3 mt-1 mb-4">
+  <div>
+    <div class="hero-kicker mb-2">DISCOVER / CURATED SIGNAL</div>
+    <h1 class="display-6 fw-bold mb-2">Find your next move.</h1>
+    <p class="text-muted mb-0">Search opportunities extracted from your connected sources.</p>
+  </div>
+  <span class="badge chip-neutral px-3 py-2"><i class="bi bi-database me-1"></i>{{ opportunities.total }} indexed</span>
+</div>
+<div class="row g-4">
+
+  <!-- Sidebar: filters + type breakdown -->
+  <div class="col-lg-3">
+    <div class="card glass-card border-0 shadow-sm mb-3">
+      <div class="card-header bg-transparent">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-funnel me-2"></i>Filter</h6>
+      </div>
+      <div class="card-body">
+        <form method="GET" action="{{ url_for('scholarships.list_view') }}">
+          <div class="mb-2">
+            <input type="text" name="q" class="form-control form-control-sm"
+                   placeholder="Search title, org, keywords…" value="{{ filters.q }}">
+          </div>
+          <div class="mb-2">
+            <select name="country" class="form-select form-select-sm">
+              <option value="">All countries</option>
+              {% for c in countries %}
+              <option value="{{ c }}" {% if filters.country == c %}selected{% endif %}>{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <select name="type" class="form-select form-select-sm">
+              <option value="">All types</option>
+              {% for t in opportunity_types %}
+              <option value="{{ t }}" {% if filters.type == t %}selected{% endif %}>
+                {{ opportunity_labels[t] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <select name="sort" class="form-select form-select-sm">
+              <option value="recent"   {% if filters.sort == 'recent'   %}selected{% endif %}>Newest first</option>
+              <option value="score"    {% if filters.sort == 'score'    %}selected{% endif %}>Highest score</option>
+              <option value="deadline" {% if filters.sort == 'deadline' %}selected{% endif %}>Earliest deadline</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            <i class="bi bi-search me-1"></i>Search
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% if type_counts %}
+    <div class="card glass-card border-0 shadow-sm">
+      <div class="card-header bg-transparent py-2">
+        <small class="fw-semibold text-muted text-uppercase" style="font-size:.65rem;letter-spacing:.05em">By Type</small>
+      </div>
+      <div class="list-group list-group-flush small">
+        <a href="{{ url_for('scholarships.list_view', sort=filters.sort) }}"
+           class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-3
+                  {% if not filters.type %}active{% endif %}">
+          <span><i class="bi bi-grid me-2"></i>All</span>
+          <span class="badge bg-secondary rounded-pill">{{ opportunities.total }}</span>
+        </a>
+        {% for t in opportunity_types %}
+          {% if type_counts.get(t, 0) > 0 %}
+          <a href="{{ url_for('scholarships.list_view', type=t, sort=filters.sort) }}"
+             class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-3
+                    {% if filters.type == t %}active{% endif %}">
+            <span>
+              <i class="bi {{ opportunity_icons[t] }} me-2 text-{{ opportunity_colors[t] }}"></i>
+              {{ opportunity_labels[t] }}
+            </span>
+            <span class="badge bg-secondary rounded-pill">{{ type_counts[t] }}</span>
+          </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Main: opportunity list -->
+  <div class="col-lg-9">
+    <div class="card glass-card border-0 shadow-sm">
+      <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">
+          {% if filters.type %}
+            <i class="bi {{ opportunity_icons.get(filters.type, 'bi-search') }} me-2"></i>
+            {{ opportunity_labels.get(filters.type, filters.type.title()) }}
+          {% else %}
+            All Opportunities
+          {% endif %}
+        </h6>
+        <span class="badge bg-primary rounded-pill">{{ opportunities.total }}</span>
+      </div>
+
+      <div class="card-body p-0">
+        {% if opportunities.items %}
+          <div class="list-group list-group-flush">
+            {% for opp in opportunities.items %}
+            <div class="opportunity-row list-group-item px-4 py-3">
+              <a href="{{ url_for('scholarships.detail', opportunity_id=opp.id) }}"
+               class="stretched-link text-decoration-none opportunity-row-link">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="flex-grow-1 min-width-0">
+                  <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <span class="badge rounded-pill
+                                 bg-{{ opp.type_color }}-subtle text-{{ opp.type_color }}"
+                          style="font-size:.65rem">
+                      <i class="bi {{ opp.type_icon }} me-1"></i>{{ opp.type_label }}
+                    </span>
+                    {% if opp.opportunity_score >= 70 %}
+                    <span class="badge bg-success-subtle text-success rounded-pill" style="font-size:.6rem">
+                      <i class="bi bi-star-fill me-1"></i>High quality
+                    </span>
+                    {% endif %}
+                  </div>
+                  <div class="fw-semibold text-truncate">{{ opp.title or 'Untitled Opportunity' }}</div>
+                  <small class="text-muted">
+                    {% if opp.organization %}<i class="bi bi-building me-1"></i>{{ opp.organization }}{% endif %}
+                    {% if opp.country %} &bull; <i class="bi bi-geo-alt me-1"></i>{{ opp.country }}{% endif %}
+                  </small>
+                  {% if opp.summary %}
+                  <p class="text-muted small mb-0 mt-1" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ opp.summary }}</p>
+                  {% endif %}
+                </div>
+                <div class="text-end flex-shrink-0">
+                  {% if opp.deadline %}
+                    <div>
+                      <span class="badge {% if opp.is_deadline_soon %}bg-warning text-dark{% elif opp.is_expired %}bg-secondary{% else %}bg-success{% endif %}">
+                        {{ opp.deadline.strftime('%d %b %Y') }}
+                      </span>
+                    </div>
+                  {% endif %}
+                  <div class="mt-1">
+                    <small class="text-muted">
+                      <i class="bi bi-graph-up me-1"></i>{{ opp.opportunity_score }}
+                    </small>
+                  </div>
+                </div>
+              </div>
+              </a>
+              <form method="POST" action="{{ url_for('scholarships.delete', opportunity_id=opp.id) }}"
+                    class="opportunity-delete" onsubmit="return confirm('Permanently delete this opportunity?')">
+                <button type="submit" class="btn btn-sm btn-icon-danger" title="Delete opportunity" aria-label="Delete opportunity">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+
+          {% if opportunities.pages > 1 %}
+          <div class="d-flex justify-content-center py-3">
+            <nav>
+              <ul class="pagination pagination-sm mb-0">
+                {% if opportunities.has_prev %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('scholarships.list_view', page=opportunities.prev_num, q=filters.q, country=filters.country, type=filters.type, sort=filters.sort) }}">&laquo;</a>
+                </li>
+                {% endif %}
+                {% for p in opportunities.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                  {% if p %}
+                  <li class="page-item {% if p == opportunities.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('scholarships.list_view', page=p, q=filters.q, country=filters.country, type=filters.type, sort=filters.sort) }}">{{ p }}</a>
+                  </li>
+                  {% else %}
+                  <li class="page-item disabled"><span class="page-link">…</span></li>
+                  {% endif %}
+                {% endfor %}
+                {% if opportunities.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="{{ url_for('scholarships.list_view', page=opportunities.next_num, q=filters.q, country=filters.country, type=filters.type, sort=filters.sort) }}">&raquo;</a>
+                </li>
+                {% endif %}
+              </ul>
+            </nav>
+          </div>
+          {% endif %}
+
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-search fs-1 d-block mb-3 opacity-25"></i>
+            <p class="mb-2">No opportunities found.</p>
+            {% if filters.q or filters.country or filters.type %}
+            <a href="{{ url_for('scholarships.list_view') }}" class="btn btn-sm btn-outline-secondary">Clear filters</a>
+            {% else %}
+            <a href="{{ url_for('sources.manage') }}" class="btn btn-sm btn-primary">
+              <i class="bi bi-plus me-1"></i>Add a source
+            </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

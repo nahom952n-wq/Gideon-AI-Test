@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="app-shell" id="appShell">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <aside id="sidebar" class="app-sidebar" aria-label="Primary navigation">
+    <div class="sidebar-inner">
+      <a href="{{ url_for('dashboard.index') }}" class="sidebar-brand" title="Gideon home">
+        <img src="{{ url_for('static', filename='img/gideon-logo.png') }}" alt="Gideon logo">
+        <span class="brand-copy"><strong>GIDEON</strong><small>OPPORTUNITY INTELLIGENCE</small></span>
+      </a>
+
+      <div class="sidebar-rule"></div>
+      <p class="sidebar-label">Workspace</p>
+      <nav class="nav flex-column gap-1" aria-label="Workspace">
+        <a href="{{ url_for('dashboard.index') }}" class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}" title="Dashboard"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></a>
+        <a href="{{ url_for('scholarships.list_view') }}" class="nav-link {% if request.blueprint == 'scholarships' %}active{% endif %}" title="Opportunities"><i class="bi bi-search"></i><span>Opportunities</span></a>
+        <a href="{{ url_for('feed.index') }}" class="nav-link {% if request.blueprint == 'feed' %}active{% endif %}" title="Tailored Feed"><i class="bi bi-stars"></i><span>Tailored Feed</span></a>
+        <a href="{{ url_for('news.index') }}" class="nav-link {% if request.blueprint == 'news' %}active{% endif %}" title="News Outlets"><i class="bi bi-newspaper"></i><span>News Outlets</span></a>
+        <a href="{{ url_for('tracker.index') }}" class="nav-link {% if request.blueprint == 'tracker' %}active{% endif %}" title="Tracker"><i class="bi bi-kanban-fill"></i><span>Tracker</span></a>
+        <a href="{{ url_for('chat.index') }}" class="nav-link {% if request.blueprint == 'chat' %}active{% endif %}" title="AI Chat"><i class="bi bi-chat-square-text-fill"></i><span>AI Chat</span></a>
+        <a href="{{ url_for('sources.manage') }}" class="nav-link {% if request.blueprint == 'sources' %}active{% endif %}" title="Sources"><i class="bi bi-broadcast-pin"></i><span>Sources</span></a>
+      </nav>
+
+      <p class="sidebar-label mt-4">System</p>
+      <nav class="nav flex-column gap-1" aria-label="System">
+        <a href="{{ url_for('profile.edit') }}" class="nav-link {% if request.blueprint == 'profile' %}active{% endif %}" title="My Profile"><i class="bi bi-person-fill"></i><span>My Profile</span></a>
+        <a href="{{ url_for('settings.index') }}" class="nav-link {% if request.blueprint == 'settings' %}active{% endif %}" title="Settings"><i class="bi bi-sliders2"></i><span>Settings</span></a>
+        <a href="{{ url_for('backups.index') }}" class="nav-link {% if request.blueprint == 'backups' %}active{% endif %}" title="Backups"><i class="bi bi-archive-fill"></i><span>Backups</span></a>
+      </nav>
+
+      <div class="sidebar-footer mt-auto">
+        <div class="online-indicator"><span></span><small>LOCAL INSTANCE · ONLINE APIS</small></div>
+        <div class="sidebar-footer-actions">
+          <small>v3.0</small>
+          <button class="icon-button" id="themeToggle" title="Toggle color mode" type="button"><i class="bi bi-sun-fill" id="themeIcon"></i></button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="page-content" class="page-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-button sidebar-control" id="sidebarCollapse" type="button" title="Collapse sidebar" aria-label="Collapse sidebar"><i class="bi bi-layout-sidebar-inset"></i></button>
+        <button class="icon-button mobile-sidebar-control" id="sidebarToggle" type="button" title="Open navigation" aria-label="Open navigation"><i class="bi bi-list"></i></button>
+        <div class="page-heading"><span class="eyebrow">GIDEON / WORKSPACE</span><strong>{% block page_title %}{% endblock %}</strong></div>
+      </div>
+      <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+    </header>
+
+    <div class="flash-stack">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        {% endfor %}
+      {% endwith %}
+    </div>
+
+    <main class="page-main">{% block content %}{% endblock %}</main>
+    <footer class="app-footer"><span>GIDEON</span> · Opportunity Intelligence Platform · {{ current_year }}</footer>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

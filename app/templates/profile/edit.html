@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}My Profile — {{ app_name }}{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-3">
+  <div class="col-lg-9">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent">
+        <h6 class="mb-0 fw-semibold">
+          <i class="bi bi-person-gear me-2 text-primary"></i>
+          Your profile is used to rank and match scholarships to your goals.
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('profile.save') }}">
+
+          <h6 class="text-muted fw-semibold mb-3 border-bottom pb-2">Personal Information</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label small">Full Name</label>
+              <input type="text" name="name" class="form-control" value="{{ profile.name or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Email</label>
+              <input type="email" name="email" class="form-control" value="{{ profile.email or '' }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">Age</label>
+              <input type="number" name="age" class="form-control" value="{{ profile.age or '' }}" min="15" max="60">
+            </div>
+          </div>
+
+          <h6 class="text-muted fw-semibold mb-3 border-bottom pb-2">Academic Profile</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <label class="form-label small">GPA (out of 4.0)</label>
+              <input type="number" name="gpa" class="form-control" value="{{ profile.gpa or '' }}" step="0.01" min="0" max="4">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">IELTS Score</label>
+              <input type="number" name="ielts_score" class="form-control" value="{{ profile.ielts_score or '' }}" step="0.5" min="0" max="9">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small">TOEFL Score</label>
+              <input type="number" name="toefl_score" class="form-control" value="{{ profile.toefl_score or '' }}" min="0" max="120">
+            </div>
+          </div>
+
+          <h6 class="text-muted fw-semibold mb-3 border-bottom pb-2">Scholarship Preferences</h6>
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label small">Target Countries <span class="text-muted">(comma-separated)</span></label>
+              <input type="text" name="target_countries" class="form-control"
+                     value="{{ profile.target_countries | join(', ') }}"
+                     placeholder="Germany, Canada, UK">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Target Majors <span class="text-muted">(comma-separated)</span></label>
+              <input type="text" name="target_majors" class="form-control"
+                     value="{{ profile.target_majors | join(', ') }}"
+                     placeholder="Computer Science, Engineering">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Target Universities <span class="text-muted">(comma-separated)</span></label>
+              <input type="text" name="target_universities" class="form-control"
+                     value="{{ profile.target_universities | join(', ') }}"
+                     placeholder="TU Munich, MIT">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Languages Spoken <span class="text-muted">(comma-separated)</span></label>
+              <input type="text" name="languages" class="form-control"
+                     value="{{ profile.languages | join(', ') }}"
+                     placeholder="English, German">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Career Interests <span class="text-muted">(comma-separated)</span></label>
+              <input type="text" name="career_interests" class="form-control"
+                     value="{{ profile.career_interests | join(', ') }}"
+                     placeholder="AI Research, Climate Tech">
+            </div>
+          </div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <label class="form-label small">Target Degree Levels</label>
+              <div class="d-flex flex-wrap gap-3 mt-1">
+                {% for d in ['bachelor', 'master', 'phd', 'postdoc'] %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="target_degree_levels"
+                         value="{{ d }}" id="deg_{{ d }}"
+                         {% if d in profile.target_degree_levels %}checked{% endif %}>
+                  <label class="form-check-label" for="deg_{{ d }}">{{ d | title }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small">Funding Preferences</label>
+              <div class="d-flex flex-wrap gap-3 mt-1">
+                {% for f in ['full', 'partial', 'tuition_only', 'stipend_only'] %}
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="funding_preferences"
+                         value="{{ f }}" id="fund_{{ f }}"
+                         {% if f in profile.funding_preferences %}checked{% endif %}>
+                  <label class="form-check-label" for="fund_{{ f }}">{{ f | replace('_', ' ') | title }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save me-1"></i>Save Profile
+            </button>
+            <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

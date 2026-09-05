@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Sources — {{ app_name }}{% endblock %}
+{% block page_title %}Data Sources{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('sources.telegram_setup') }}"
+   class="btn btn-sm {% if tg_connected %}btn-success{% elif tg_configured %}btn-warning{% else %}btn-outline-secondary{% endif %}">
+  <i class="bi bi-telegram me-1"></i>
+  {% if tg_connected %}Telegram Connected{% elif tg_configured %}Setup Required{% else %}Telegram Not Configured{% endif %}
+</a>
+<form method="POST" action="{{ url_for('sources.sync_all') }}" class="d-inline">
+  <button type="submit" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-arrow-repeat me-1"></i>Sync All
+  </button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4 mt-1">
+
+  <!-- Source list -->
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">Configured Sources</h6>
+        <span class="badge bg-primary rounded-pill">{{ sources | length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if sources %}
+        <div class="list-group list-group-flush">
+          {% for source in sources %}
+          <div class="list-group-item px-4 py-3">
+            <div class="d-flex align-items-start justify-content-between gap-3">
+
+              <!-- Icon + info -->
+              <div class="d-flex align-items-start gap-3">
+                <div class="source-icon rounded-3 p-2 flex-shrink-0
+                  {% if source.is_active %}bg-success-subtle{% else %}bg-secondary-subtle{% endif %}">
+                  {% if source.source_type == 'telegram' %}
+                  <i class="bi bi-telegram fs-5 {% if source.is_active %}text-success{% else %}text-secondary{% endif %}"></i>
+                  {% elif source.source_type == 'rss' %}
+                  <i class="bi bi-rss fs-5 {% if source.is_active %}text-success{% else %}text-secondary{% endif %}"></i>
+                  {% else %}
+                  <i class="bi bi-keyboard fs-5 {% if source.is_active %}text-success{% else %}text-secondary{% endif %}"></i>
+                  {% endif %}
+                </div>
+                <div>
+                  <div class="fw-semibold">{{ source.name }}</div>
+                  <div class="d-flex flex-wrap gap-1 mt-1 align-items-center">
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis">{{ source.source_type | title }}</span>
+                    <span class="badge
+                      {% if source.health_status == 'ok' %}bg-success
+                      {% elif source.health_status == 'error' %}bg-danger
+                      {% elif source.health_status == 'degraded' %}bg-warning text-dark
+                      {% else %}bg-secondary{% endif %}">
+                      {{ source.health_status }}
+                    </span>
+                    {% if source.source_type == 'telegram' and source.config %}
+                    <span class="text-muted small">{{ source.config.get('channel', '') }}</span>
+                    {% elif source.source_type == 'rss' and source.config %}
+                    <span class="text-muted small text-truncate" style="max-width:200px">{{ source.config.get('url', '') }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="mt-1 small text-muted">
+                    {% if source.last_fetched_at %}
+                    Last sync: {{ source.last_fetched_at.strftime('%d %b %H:%M') }}
+                    {% else %}
+                    Never synced
+                    {% endif %}
+                    &bull;
+                    {{ item_counts.get(source.id, 0) }} items collected
+                    {% if source.health_message and source.health_status == 'error' %}
+                    <br><span class="text-danger">{{ source.health_message[:120] }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="d-flex flex-column flex-sm-row gap-1 flex-shrink-0">
+                <form method="POST" action="{{ url_for('sources.sync_one', source_id=source.id) }}">
+                  <button type="submit" class="btn btn-sm btn-outline-info" title="Sync now"
+                    {% if not source.is_active %}disabled{% endif %}>
+                    <i class="bi bi-arrow-repeat"></i>
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('sources.toggle', source_id=source.id) }}">
+                  <button type="submit"
+                    class="btn btn-sm {% if source.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
+                    {% if source.is_active %}<i class="bi bi-pause-fill"></i>{% else %}<i class="bi bi-play-fill"></i>{% endif %}
+                  </button>
+                </form>
+                <form method="POST" action="{{ url_for('sources.delete', source_id=source.id) }}"
+                  onsubmit="return confirm('Delete source \'{{ source.name }}\'? Collected raw items will be kept.')">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state"><div class="empty-icon"><i class="bi bi-broadcast-pin"></i></div><h6>No sources configured</h6><p>Add a Telegram channel, RSS feed, or manual entry to start collecting opportunities.</p><a class="btn btn-sm btn-primary" href="#add-source"><i class="bi bi-plus-circle me-1"></i>Add your first source</a></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Add source panel -->
+  <div class="col-lg-4" id="add-source">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-transparent">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2 text-primary"></i>Add New Source</h6>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('sources.add') }}">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Source Name</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Scholarships Channel" required>
+          </div>
+          <div class="form-check mb-3" id="add-news-source">
+            <input class="form-check-input" type="checkbox" name="category" value="news" id="newsSourceCheck"
+                   {% if focus == 'news' %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold" for="newsSourceCheck">
+              Treat this as a news outlet
+            </label>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Source Type</label>
+            <select name="source_type" class="form-select" id="sourceType" onchange="updateSourceForm()">
+              <option value="telegram">📡 Telegram Channel</option>
+              <option value="rss">📰 RSS Feed</option>
+              <option value="manual">✏️ Manual Entry</option>
+            </select>
+          </div>
+
+          <!-- Telegram fields -->
+          <div id="telegramFields">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Channel / Group</label>
+              <div class="input-group">
+                <input type="text" name="config_value" id="channelInput" class="form-control"
+                       placeholder="@username or numeric ID">
+                {% if tg_connected %}
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        id="browseBtn" onclick="loadDialogs()">
+                  <i class="bi bi-list-ul"></i> Browse
+                </button>
+                {% endif %}
+              </div>
+              <div class="form-text">Public channels, private channels you joined, or groups.</div>
+              <!-- Dialog browser -->
+              <div id="dialogBrowser" class="mt-2 d-none border rounded overflow-auto"
+                   style="max-height:200px">
+                <div id="dialogList" class="list-group list-group-flush small"></div>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small">Fetch limit</label>
+                <input type="number" name="limit" class="form-control form-control-sm" value="100" min="10" max="500">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Look-back (hrs)</label>
+                <input type="number" name="since_hours" class="form-control form-control-sm" value="24" min="1" max="720">
+              </div>
+            </div>
+            {% if not tg_connected %}
+            <div class="alert alert-warning py-2 small">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              Telegram is not connected.
+              <a href="{{ url_for('sources.telegram_setup') }}" class="alert-link">Run setup →</a>
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- RSS fields -->
+          <div id="rssFields" style="display:none">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">RSS Feed URL</label>
+              <input type="url" name="rss_url" class="form-control" placeholder="https://example.com/feed.xml">
+            </div>
+          </div>
+
+          <!-- Manual: no extra fields -->
+          <div id="manualFields" style="display:none">
+            <div class="alert alert-info py-2 small">
+              <i class="bi bi-info-circle me-1"></i>
+              Manual sources are populated via the Scholarships → Add Manually page.
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-plus-circle me-1"></i>Add Source
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Telegram status card -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-telegram me-2"></i>Telegram</h6>
+        <span class="badge {% if tg_connected %}bg-success{% elif tg_configured %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+          {% if tg_connected %}Connected{% elif tg_configured %}Not Connected{% else %}Not Configured{% endif %}
+        </span>
+      </div>
+      <div class="card-body py-2">
+        {% if not tg_configured %}
+        <p class="small text-muted mb-2">Add your Telegram API ID, API Hash, phone number, and optional bot token in <a href="{{ url_for('settings.index') }}#tab-telegram-account">Settings → Telegram Credentials</a> to enable Telegram sources.</p>
+        <a href="https://my.telegram.org/apps" target="_blank" class="btn btn-sm btn-outline-primary w-100">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Get API credentials
+        </a>
+        {% elif tg_connected %}
+        <p class="small text-success mb-2"><i class="bi bi-check-circle me-1"></i>Session active. Sources will sync automatically.</p>
+        <a href="{{ url_for('sources.telegram_setup') }}" class="btn btn-sm btn-outline-secondary w-100">Manage Session</a>
+        {% else %}
+        <p class="small text-muted mb-2">Credentials found but no active session. Complete setup to connect.</p>
+        <a href="{{ url_for('sources.telegram_setup') }}" class="btn btn-sm btn-warning w-100">
+          <i class="bi bi-key me-1"></i>Complete Setup
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateSourceForm() {
+  const type = document.getElementById('sourceType').value;
+  document.getElementById('telegramFields').style.display = type === 'telegram' ? '' : 'none';
+  document.getElementById('rssFields').style.display = type === 'rss' ? '' : 'none';
+  document.getElementById('manualFields').style.display = type === 'manual' ? '' : 'none';
+}
+updateSourceForm();
+
+// Browse Channels — load accessible chats via AJAX and let user click to fill
+function loadDialogs() {
+  const browser = document.getElementById('dialogBrowser');
+  const list = document.getElementById('dialogList');
+  browser.classList.remove('d-none');
+  list.innerHTML = '<div class="list-group-item text-muted small py-2"><i class="bi bi-arrow-repeat spin me-1"></i>Loading chats…</div>';
+
+  fetch('{{ url_for("sources.telegram_dialogs") }}')
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        list.innerHTML = `<div class="list-group-item text-danger small py-2">${data.error}</div>`;
+        return;
+      }
+      if (!data.dialogs || data.dialogs.length === 0) {
+        list.innerHTML = '<div class="list-group-item text-muted small py-2">No chats found.</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      const searchContainer = document.createElement('div');
+      searchContainer.className = 'p-2 bg-dark border-bottom sticky-top';
+      const search = document.createElement('input');
+      search.type = 'text';
+      search.placeholder = 'Filter chats by name or username…';
+      search.className = 'form-control form-control-sm';
+      searchContainer.appendChild(search);
+      list.appendChild(searchContainer);
+
+      const itemsContainer = document.createElement('div');
+      itemsContainer.id = 'dialogItemsContainer';
+      list.appendChild(itemsContainer);
+
+      const renderChats = (filterText = '') => {
+        itemsContainer.innerHTML = '';
+        const query = filterText.toLocaleLowerCase();
+        const filtered = data.dialogs.filter(d => {
+          const name = String(d.name || '').toLocaleLowerCase();
+          const username = String(d.username || '').toLocaleLowerCase();
+          const id = String(d.id || '').toLocaleLowerCase();
+          return name.includes(query) || username.includes(query) || id.includes(query);
+        });
+
+        if (filtered.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'list-group-item text-muted small py-2 text-center';
+          empty.textContent = 'No matching channels found.';
+          itemsContainer.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach(d => {
+          const icon = d.type === 'channel' ? 'bi-megaphone' : d.type === 'group' ? 'bi-people' : 'bi-person';
+          const val = d.username ? '@' + d.username : String(d.id || '');
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'list-group-item list-group-item-action py-2 px-3 d-flex align-items-center gap-2 border-0 border-bottom';
+          const iconNode = document.createElement('i');
+          iconNode.className = `bi ${icon} text-primary flex-shrink-0`;
+          const nameNode = document.createElement('span');
+          nameNode.className = 'flex-grow-1 text-truncate fw-semibold';
+          nameNode.textContent = d.name || d.username || d.id || 'Unnamed chat';
+          const idNode = document.createElement('code');
+          idNode.className = 'small text-muted flex-shrink-0';
+          idNode.textContent = val;
+          item.append(iconNode, nameNode);
+          if (d.members) {
+            const membersNode = document.createElement('small');
+            membersNode.className = 'text-muted ms-1';
+            membersNode.textContent = `(${Number(d.members).toLocaleString()})`;
+            item.appendChild(membersNode);
+          }
+          item.appendChild(idNode);
+          item.onclick = () => {
+            document.getElementById('channelInput').value = val;
+            browser.classList.add('d-none');
+          };
+          itemsContainer.appendChild(item);
+        });
+      };
+
+      renderChats();
+      search.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') event.preventDefault();
+      });
+      search.addEventListener('input', () => renderChats(search.value));
+    })
+    .catch(err => {
+      list.innerHTML = `<div class="list-group-item text-danger small py-2">Error: ${err}</div>`;
+    });
+}
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display:inline-block; animation: spin 1s linear infinite; }
+</style>
+{% endblock %}
