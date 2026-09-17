@@ -1,32 +1,8 @@
-"""Telegram Bot API service for Gideon.
+"""Telegram Bot API service for ScholarMind AI.
 
-Runs a small dependency-light long-polling worker in a daemon thread.  The
+Runs a small dependency-light long-polling worker in a daemon thread. The
 userbot service remains separate and continues to use Telethon; this worker
-uses Telegram's HTTPS Bot API directly through the requests dependency that
-Gideon already uses elsewhere.
-
-Supported commands
-------------------
-  /start          — welcome message
-  /help           — usage guide
-  /opportunities  — latest 5 active opportunities from the database
-  /search <query> — keyword search across opportunities
-
-Any other message is forwarded to ChatService.respond() — the same AI
-pipeline used by the web chat interface.
-
-Separation from the Telegram Userbot
--------------------------------------
-This service manages a *bot* account (@YourBotName) via the Bot API.
-The existing TelegramService/TelegramSource uses a *user account* via
-MTProto (Telethon).  They share no code paths and cannot conflict.
-
-Usage (from the Flask app factory)
------------------------------------
-    from app.services.telegram_bot_service import start_bot, stop_bot
-
-    start_bot(token, flask_app)   # call after db.create_all()
-    stop_bot()                    # call on shutdown (optional)
+uses Telegram's HTTPS Bot API directly through the requests dependency.
 """
 
 from __future__ import annotations
@@ -41,13 +17,10 @@ import requests
 
 log = logging.getLogger("scholarmind.telegram_bot")
 
-# ── Module-level state ────────────────────────────────────────────────────────
 _bot_thread: Optional[threading.Thread] = None
-_running     = False
+_running = False
 _bot_token: Optional[str] = None
 
-
-# ── Public API ────────────────────────────────────────────────────────────────
 
 def is_running() -> bool:
     """Return True if the bot thread is alive."""
@@ -55,16 +28,14 @@ def is_running() -> bool:
 
 
 def start_bot(token: str, flask_app) -> None:
-    """
-    Start the Telegram bot in a background daemon thread.
-
-    Safe to call multiple times — if the bot is already running it stops
-    the old instance first.
-    """
+    """Start the Telegram bot worker, avoiding duplicate starts."""
     global _bot_thread, _running, _bot_token
 
     if is_running():
-        log.info("Bot already running — restarting with new token")
+        if _bot_token == token:
+            log.info("Telegram bot is already running")
+            return
+        log.info("Telegram bot token changed — restarting worker")
         stop_bot()
 
     _running = True
@@ -92,8 +63,6 @@ def stop_bot() -> None:
     log.info("Telegram bot stopped")
 
 
-# ── Thread entry point ────────────────────────────────────────────────────────
-
 def _thread_main(token: str, flask_app) -> None:
     """Run the Bot API long-polling loop until stop_bot() is called."""
     try:
@@ -103,7 +72,7 @@ def _thread_main(token: str, flask_app) -> None:
 
 
 def _run_bot(token: str, flask_app) -> None:
-    """Poll Telegram updates and dispatch each message to Gideon's handlers."""
+    """Poll Telegram updates and dispatch each message to ScholarMind handlers."""
     api_url = f"https://api.telegram.org/bot{token}"
     offset = None
     log.info("Starting Telegram Bot API polling …")
@@ -199,7 +168,7 @@ class _Context:
 
 
 async def _dispatch_update(update: _Update, flask_app) -> None:
-    """Use the same handlers as the original Bot API implementation."""
+    """Dispatch a Telegram update inside a Flask application context."""
     text = update.message.text.strip()
     command, *args = text.split()
     command = command.split("@", 1)[0].lower()
@@ -214,27 +183,12 @@ async def _dispatch_update(update: _Update, flask_app) -> None:
         await handler(update, _Context(args))
 
 
-# ── Handler factory ───────────────────────────────────────────────────────────
-
-def _make_handler(flask_app, fn):
-    """
-    Wrap an async handler so it runs inside a Flask application context.
-    SQLAlchemy operations require an active app context.
-    """
-    async def wrapper(update, context):
-        with flask_app.app_context():
-            await fn(update, context)
-    return wrapper
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-FOOTER = "\n\n_Powered by Gideon • Reply to continue conversation_"
+FOOTER = "\n\n_Powered by ScholarMind AI • Reply to continue conversation_"
 
 HELP_TEXT = """\
-🎓 *Gideon Scholarship Assistant*
+🎓 *ScholarMind AI Scholarship Assistant*
 
-I can answer questions about scholarships, fellowships, grants, and other academic opportunities tracked in your Gideon database.
+I can answer questions about scholarships, fellowships, grants, and other academic opportunities tracked in your ScholarMind database.
 
 *Commands:*
 /start — Welcome message
@@ -258,9 +212,9 @@ def _get_or_create_user(tg_update):
 
     tg_user = tg_update.effective_user
     user = TelegramBotUser.get_or_create(
-        telegram_id = tg_user.id,
-        first_name  = tg_user.first_name or "",
-        username    = tg_user.username   or "",
+        telegram_id=tg_user.id,
+        first_name=tg_user.first_name or "",
+        username=tg_user.username or "",
     )
     db.session.commit()
     return user, user.chat_session_id
@@ -270,15 +224,15 @@ def _save_messages(session_id: int, user_text: str, bot_text: str, source: str) 
     """Persist the user message and bot reply to the shared ChatMessage table."""
     from ..models.chat import ChatMessage, ChatSession
     from ..extensions import db
-    from datetime import datetime
+    from datetime import datetime, timezone
 
-    user_msg = ChatMessage(session_id=session_id, role="user",      content=user_text)
-    bot_msg  = ChatMessage(session_id=session_id, role="assistant", content=bot_text, source=source)
+    user_msg = ChatMessage(session_id=session_id, role="user", content=user_text)
+    bot_msg = ChatMessage(session_id=session_id, role="assistant", content=bot_text, source=source)
     db.session.add_all([user_msg, bot_msg])
 
     session = ChatSession.query.get(session_id)
     if session:
-        session.last_active_at = datetime.utcnow()
+        session.last_active_at = datetime.now(timezone.utc)
         if not session.title:
             session.title = user_text[:60]
 
@@ -299,13 +253,11 @@ def _format_opportunity(opp) -> str:
     return "\n".join(parts)
 
 
-# ── Command handlers ──────────────────────────────────────────────────────────
-
 async def _cmd_start(update, context) -> None:
     user = update.effective_user
     name = user.first_name or "there"
     await update.message.reply_text(
-        f"👋 Hi {name}! I'm *Gideon*, your personal scholarship and opportunity assistant.\n\n"
+        f"👋 Hi {name}! I'm *ScholarMind AI*, your personal scholarship and opportunity assistant.\n\n"
         "I search a curated database of scholarships, fellowships, grants, and more — "
         "just ask me anything.\n\n"
         "Type /help to see what I can do.",
@@ -331,7 +283,7 @@ async def _cmd_opportunities(update, context) -> None:
     if not opps:
         await update.message.reply_text(
             "No opportunities found in the database yet. "
-            "Add some sources in the Gideon web interface first."
+            "Add some sources in the ScholarMind web interface first."
         )
         return
 
@@ -355,14 +307,14 @@ async def _cmd_search(update, context) -> None:
         )
         return
 
+    from sqlalchemy import or_
     from ..models.opportunity import Opportunity
-    from ..extensions import db as _db
 
     like = f"%{query}%"
     results = (
         Opportunity.query
         .filter(
-            _db.or_(
+            or_(
                 Opportunity.title.ilike(like),
                 Opportunity.organization.ilike(like),
                 Opportunity.country.ilike(like),
@@ -377,7 +329,7 @@ async def _cmd_search(update, context) -> None:
 
     if not results:
         await update.message.reply_text(
-            f'No opportunities found matching "{query}". Try a different keyword.',
+            f'No opportunities found matching "{query}". Try a different keyword.'
         )
         return
 
@@ -398,10 +350,8 @@ async def _handle_message(update, context) -> None:
     if not user_text:
         return
 
-    # Show typing indicator while the AI thinks
     await update.message.chat.send_action("typing")
-
-    tg_user, session_id = _get_or_create_user(update)
+    _tg_user, session_id = _get_or_create_user(update)
 
     try:
         from ..services.chat_service import ChatService
