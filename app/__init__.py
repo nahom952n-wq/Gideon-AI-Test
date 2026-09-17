@@ -1,5 +1,5 @@
 """
-Gideon — Flask Application Factory.
+ScholarMind AI — Flask Application Factory.
 
 Using the factory pattern allows different configurations per environment
 and makes the app testable without global state.
@@ -10,8 +10,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request
 from sqlalchemy import inspect
-from .config import configs, BaseConfig
+from .config import configs
 from .extensions import db, scheduler
+
+
+_SERVICES_STARTED = False
 
 
 def create_app(env: str | None = None) -> Flask:
@@ -46,7 +49,7 @@ def create_app(env: str | None = None) -> Flask:
         db.create_all()
         _ensure_application_opportunity_column(app)
         _start_telegram_bot(app)
-        app.logger.info("Gideon started (env=%s)", env)
+        app.logger.info("ScholarMind AI started (env=%s)", env)
 
     return app
 
@@ -54,6 +57,8 @@ def create_app(env: str | None = None) -> Flask:
 def _ensure_application_opportunity_column(app: Flask) -> None:
     """Add the generic opportunity link to databases created before Phase 3."""
     inspector = inspect(db.engine)
+    if "applications" not in inspector.get_table_names():
+        return
     columns = {column["name"] for column in inspector.get_columns("applications")}
     if "opportunity_id" not in columns:
         with db.engine.begin() as connection:
@@ -75,8 +80,11 @@ def _start_telegram_bot(app: Flask) -> None:
             "TELEGRAM_BOT_ENABLED", "false"
         )
         if token and str(enabled).lower() == "true":
-            telegram_bot_service.start_bot(token, app)
-            app.logger.info("Telegram Bot API worker started")
+            # The service is already idempotent for a running worker; do not
+            # restart it merely because another app instance was constructed.
+            if not telegram_bot_service.is_running():
+                telegram_bot_service.start_bot(token, app)
+                app.logger.info("Telegram Bot API worker started")
     except Exception as exc:
         app.logger.error("Telegram Bot API worker could not start: %s", exc)
 
@@ -86,32 +94,45 @@ def _configure_logging(app: Flask) -> None:
     logs_dir = app.config["LOGS_DIR"]
     log_level = logging.DEBUG if app.config.get("DEBUG") else logging.INFO
 
-    formatters = {
-        "detailed": logging.Formatter(
-            "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
-        )
-    }
+    formatter = logging.Formatter(
+        "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
+    )
 
     def _add_file_handler(logger_name: str, filename: str) -> logging.Logger:
+        log = logging.getLogger(logger_name)
+        # Flask's app factory can be called repeatedly (tests, desktop shell).
+        # Avoid stacking duplicate file handlers on every app construction.
+        if any(
+            isinstance(handler, RotatingFileHandler)
+            and getattr(handler, "baseFilename", None) == str(logs_dir / filename)
+            for handler in log.handlers
+        ):
+            return log
         handler = RotatingFileHandler(
             logs_dir / filename, maxBytes=5 * 1024 * 1024, backupCount=3
         )
-        handler.setFormatter(formatters["detailed"])
+        handler.setFormatter(formatter)
         handler.setLevel(log_level)
-        log = logging.getLogger(logger_name)
         log.setLevel(log_level)
         log.addHandler(handler)
         return log
 
-    _add_file_handler("scholarmind.app",      "app.log")
-    _add_file_handler("scholarmind.telegram",  "telegram.log")
-    _add_file_handler("scholarmind.ai",        "ai.log")
-    _add_file_handler("scholarmind.db",        "database.log")
-    _add_file_handler("scholarmind.errors",    "errors.log")
+    for logger_name, filename in {
+        "scholarmind.app": "app.log",
+        "scholarmind.telegram": "telegram.log",
+        "scholarmind.ai": "ai.log",
+        "scholarmind.db": "database.log",
+        "scholarmind.errors": "errors.log",
+    }.items():
+        _add_file_handler(logger_name, filename)
 
-    if app.config.get("DEBUG"):
+    if app.config.get("DEBUG") and not any(
+        isinstance(handler, logging.StreamHandler)
+        and not isinstance(handler, RotatingFileHandler)
+        for handler in logging.getLogger("scholarmind").handlers
+    ):
         stream = logging.StreamHandler()
-        stream.setFormatter(formatters["detailed"])
+        stream.setFormatter(formatter)
         stream.setLevel(log_level)
         logging.getLogger("scholarmind").addHandler(stream)
 
@@ -119,16 +140,20 @@ def _configure_logging(app: Flask) -> None:
 
 
 def _init_extensions(app: Flask) -> None:
-    """Bind Flask extensions to the app."""
+    """Bind Flask extensions to the app and start shared background jobs once."""
+    global _SERVICES_STARTED
     db.init_app(app)
 
     if not scheduler.running:
         scheduler.start()
+
+    if not _SERVICES_STARTED:
         _register_scheduler_jobs(app)
+        _SERVICES_STARTED = True
 
 
 def _configure_cors(app: Flask) -> None:
-    """Allow the local Telegram Web client to call the local Gideon API."""
+    """Allow the local Telegram Web client to call the local ScholarMind API."""
     @app.after_request
     def add_cors_headers(response):
         origin = request.headers.get("Origin")
@@ -155,7 +180,6 @@ def _register_scheduler_jobs(app: Flask) -> None:
         )
         app.logger.info("Scheduler: sync_all_sources registered (every 15 min)")
 
-    # Phase 3: AI enrichment runs every 5 minutes to drain the processing queue
     if not scheduler.get_job("process_pending"):
         scheduler.add_job(
             id="process_pending",
@@ -211,13 +235,13 @@ def _register_blueprints(app: Flask) -> None:
 
 def _register_context_processors(app: Flask) -> None:
     """Inject variables available in every Jinja2 template."""
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     @app.context_processor
     def inject_globals():
         return {
-            "app_name":    "Gideon",
-            "current_year": datetime.utcnow().year,
+            "app_name": "ScholarMind AI",
+            "current_year": datetime.now(timezone.utc).year,
         }
 
 
