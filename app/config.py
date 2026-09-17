@@ -1,10 +1,11 @@
 """
-Configuration classes for Gideon.
+Configuration classes for ScholarMind AI.
 
 Uses python-dotenv to load secrets from .env — never hardcode credentials.
 """
 
 import os
+import secrets
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
@@ -25,7 +26,10 @@ DEPRECATED_GEMINI_MODELS = {"gemini-1.5-flash", "gemini-2.5-flash"}
 class BaseConfig:
     """Shared settings for all environments."""
 
-    SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY", "change-me-in-production")
+    # Never ship a predictable production secret. A random fallback keeps
+    # local development usable while still making production deployments
+    # fail fast unless an explicit secret is supplied.
+    SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY") or secrets.token_urlsafe(32)
 
     BASE_DIR: Path = BASE_DIR
     DATA_DIR: Path = BASE_DIR / "data"
@@ -43,45 +47,44 @@ class BaseConfig:
     }
 
     # --- AI providers ---
-    ACTIVE_AI_PROVIDER: str       = os.environ.get("ACTIVE_AI_PROVIDER", "gemini")
-    GEMINI_API_KEY: str | None    = os.environ.get("GEMINI_API_KEY")
+    ACTIVE_AI_PROVIDER: str = os.environ.get("ACTIVE_AI_PROVIDER", "gemini")
+    GEMINI_API_KEY: str | None = os.environ.get("GEMINI_API_KEY")
     _configured_gemini_model = os.environ.get("GEMINI_MODEL", DEFAULT_GEMINI_MODEL)
-    GEMINI_MODEL: str             = (
+    GEMINI_MODEL: str = (
         DEFAULT_GEMINI_MODEL
         if _configured_gemini_model in DEPRECATED_GEMINI_MODELS
         else _configured_gemini_model
     )
-    OPENAI_API_KEY: str | None    = os.environ.get("OPENAI_API_KEY")
-    OPENAI_MODEL: str              = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_API_KEY: str | None = os.environ.get("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     ANTHROPIC_API_KEY: str | None = os.environ.get("ANTHROPIC_API_KEY")
-    ANTHROPIC_MODEL: str           = os.environ.get(
+    ANTHROPIC_MODEL: str = os.environ.get(
         "ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"
     )
-    GROK_API_KEY: str | None       = os.environ.get("GROK_API_KEY")
-    GROK_MODEL: str                = os.environ.get("GROK_MODEL", "grok-2")
+    GROK_API_KEY: str | None = os.environ.get("GROK_API_KEY")
+    GROK_MODEL: str = os.environ.get("GROK_MODEL", "grok-2")
 
     # --- Telegram Bot API (separate from the Telethon userbot) ---
     TELEGRAM_BOT_TOKEN: str | None = os.environ.get("TELEGRAM_BOT_TOKEN")
-    TELEGRAM_BOT_ENABLED: str      = os.environ.get("TELEGRAM_BOT_ENABLED", "false")
+    TELEGRAM_BOT_ENABLED: str = os.environ.get("TELEGRAM_BOT_ENABLED", "false")
 
     # --- Local OpenAI-compatible inference (Ollama, LM Studio, etc.) ---
-    LOCAL_AI_URL: str | None  = os.environ.get("LOCAL_AI_URL")
-    LOCAL_AI_MODEL: str       = os.environ.get("LOCAL_AI_MODEL", "qwen2.5")
+    LOCAL_AI_URL: str | None = os.environ.get("LOCAL_AI_URL")
+    LOCAL_AI_MODEL: str = os.environ.get("LOCAL_AI_MODEL", "qwen2.5")
     LOCAL_AI_CONFIDENCE_THRESHOLD: float = float(
         os.environ.get("LOCAL_AI_CONFIDENCE_THRESHOLD", "0.60")
     )
 
     # --- Capability → provider mapping ---
-    # Override any entry via CAP_<UPPER_NAME>_PROVIDER in .env
     CAPABILITY_MAP: dict = {
-        "summarization":        os.environ.get("CAP_SUMMARIZATION_PROVIDER",  "local"),
-        "structured_extraction":os.environ.get("CAP_EXTRACTION_PROVIDER",     "local"),
-        "reasoning":            os.environ.get("CAP_REASONING_PROVIDER",      "gemini"),
-        "translation":          os.environ.get("CAP_TRANSLATION_PROVIDER",    "local"),
-        "classification":       os.environ.get("CAP_CLASSIFICATION_PROVIDER", "local"),
-        "vision_analysis":      os.environ.get("CAP_VISION_PROVIDER",         "gemini"),
-        "chat":                 os.environ.get("CAP_CHAT_PROVIDER",           "gemini"),
-        "ocr":                  os.environ.get("CAP_OCR_PROVIDER",            "gemini"),
+        "summarization": os.environ.get("CAP_SUMMARIZATION_PROVIDER", "local"),
+        "structured_extraction": os.environ.get("CAP_EXTRACTION_PROVIDER", "local"),
+        "reasoning": os.environ.get("CAP_REASONING_PROVIDER", "gemini"),
+        "translation": os.environ.get("CAP_TRANSLATION_PROVIDER", "local"),
+        "classification": os.environ.get("CAP_CLASSIFICATION_PROVIDER", "local"),
+        "vision_analysis": os.environ.get("CAP_VISION_PROVIDER", "gemini"),
+        "chat": os.environ.get("CAP_CHAT_PROVIDER", "gemini"),
+        "ocr": os.environ.get("CAP_OCR_PROVIDER", "gemini"),
     }
 
     # --- Pipeline ---
@@ -89,10 +92,6 @@ class BaseConfig:
     AI_ENRICHMENT_RATE: int = int(os.environ.get("AI_ENRICHMENT_RATE", "5"))
 
     # --- Dashboard Focus Mode ---
-    # Controls which opportunity type the dashboard prioritises.
-    # Values: "mixed" | any OpportunityType (scholarship, internship, job, …)
-    # Override in .env with DASHBOARD_FOCUS=internship, or change at runtime
-    # via Settings → Focus Mode (stored in Flask session).
     DASHBOARD_FOCUS: str = os.environ.get("DASHBOARD_FOCUS", "mixed")
 
     # --- Notifications ---
@@ -102,7 +101,7 @@ class BaseConfig:
 
     # --- SMTP (optional) ---
     SMTP_HOST: str | None = os.environ.get("SMTP_HOST")
-    SMTP_PORT: int        = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_PORT: int = int(os.environ.get("SMTP_PORT", "587"))
     SMTP_USER: str | None = os.environ.get("SMTP_USER")
     SMTP_PASS: str | None = os.environ.get("SMTP_PASS")
 
@@ -130,8 +129,18 @@ class DevelopmentConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     DEBUG: bool = False
 
+    @classmethod
+    def ensure_dirs(cls) -> None:
+        secret = os.environ.get("FLASK_SECRET_KEY")
+        if not secret or len(secret) < 32:
+            raise RuntimeError(
+                "FLASK_SECRET_KEY must be set to a unique value of at least 32 characters in production."
+            )
+        cls.SECRET_KEY = secret
+        super().ensure_dirs()
+
 
 configs = {
     "development": DevelopmentConfig,
-    "production":  ProductionConfig,
+    "production": ProductionConfig,
 }
