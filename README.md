@@ -1,6 +1,6 @@
-# Gideon / ScholarMind
+# ScholarMind AI
 
-Gideon is an existing Flask application for collecting, processing, and tracking scholarships, internships, fellowships, grants, competitions, jobs, and related opportunities. This version is a **refinement of the existing application**, not a rebuild.
+ScholarMind AI is a Flask application for collecting, processing, and tracking scholarships, internships, fellowships, grants, competitions, jobs, and related opportunities. This version is a refinement of the existing application, not a rebuild.
 
 ## Run locally
 
@@ -13,54 +13,48 @@ venv\Scripts\Activate.ps1
 # macOS/Linux
 source venv/bin/activate
 pip install -r requirements.txt
-# Optional: create a .env file for deployment-level defaults, or use Settings in the UI.
+# Optional: create a .env file for local configuration, or use Settings in the UI.
 python run.py
 ```
 
 Open `http://127.0.0.1:5000` after the server starts.
 
+The local server binds to `127.0.0.1` by default. If you intentionally need a network-accessible development server, set `HOST` explicitly.
+
 ## Run with the modified Telegram Web client
 
-Run the two applications in separate terminals. They intentionally use
-different loopback ports:
+Run the two applications in separate terminals. They intentionally use different loopback ports:
 
 ```powershell
-# Terminal 1 — Gideon backend
-cd C:\Users\bamla\Downloads\Telegram-web-z\Gideon-share
+# Terminal 1 — ScholarMind AI backend
 py -3.14 run.py
 
 # Terminal 2 — Telegram Web frontend
-cd C:\Users\bamla\Downloads\Telegram-web-z\Telegram-web-z
 npm run dev
 ```
 
-Open `http://localhost:1234` for Telegram Web and
-`http://127.0.0.1:5000/dashboard` for Gideon. Telegram Web sends extracted
-message batches to `http://127.0.0.1:5000/api/v1/ingest/telegram`; the backend
-does not connect to Telegram or require Telegram API credentials.
+Open `http://localhost:1234` for Telegram Web and `http://127.0.0.1:5000/dashboard` for ScholarMind AI. Telegram Web sends extracted message batches to `http://127.0.0.1:5000/api/v1/ingest/telegram`; the backend does not connect to Telegram or require Telegram API credentials for that ingestion path.
 
 For the tray desktop shell, install the requirements and run:
 
 ```powershell
-cd C:\Users\bamla\Downloads\Telegram-web-z\Gideon-share
 py -3.14 -m pip install -r requirements.txt
 py -3.14 desktop.py
 ```
 
-The tray shell starts Gideon on `127.0.0.1:5000`. Start Telegram Web separately
-on `localhost:1234`, then use the tray menu to open either application.
+The tray shell starts ScholarMind AI on `127.0.0.1:5000`. Start Telegram Web separately on `localhost:1234`, then use the tray menu to open either application. `TELEGRAM_WEB_URL` can override the Telegram Web address.
 
 ## AI Providers & API Keys
 
 Open **Settings → AI Providers & API Keys**. The page supports Google Gemini, OpenAI, Anthropic Claude, xAI Grok, and local OpenAI-compatible endpoints such as Ollama or LM Studio. Each provider has a model field and a **Test** action. The local provider uses an endpoint URL rather than a cloud API key.
 
-Saved values are encrypted before they are stored in the `api_key_settings` database table. Environment variables remain supported as a fallback, and Replit users may use Replit Secrets instead of saving keys through the UI. The interface intentionally never displays a stored secret; it only reports whether a value is configured and whether a manual connection test succeeded.
+Saved values are encrypted before they are stored in the `api_key_settings` database table. Environment variables remain supported as a fallback. The interface intentionally never displays a stored secret; it only reports whether a value is configured and whether a manual connection test succeeded.
 
 The **Capability routing** form lets you select a provider for summarization, structured extraction, reasoning, translation, classification, vision analysis, chat, and OCR. These choices are stored separately and are loaded by `AIRouter` at request time, so changes take effect without restarting the application. Local AI retains its confidence-based cloud fallback behavior.
 
 ## Environment fallback
 
-At minimum, set a Flask secret in `.env`:
+For development, the application generates a random Flask secret when `FLASK_SECRET_KEY` is not provided. For production, an explicit secret is required.
 
 ```dotenv
 FLASK_SECRET_KEY=replace-with-a-long-random-value
@@ -72,7 +66,7 @@ You can also configure providers through environment variables, including `GEMIN
 
 > API keys are sensitive. Do not share screenshots of the API-key settings page or commit `.env`, runtime databases, session files, or backups to source control.
 
-For production or shared deployments, use a strong unique `FLASK_SECRET_KEY`, restrict access to the Settings page, and prefer the deployment platform’s secret manager.
+For production or shared deployments, use a strong unique `FLASK_SECRET_KEY`, restrict access to the Settings page, and prefer the deployment platform's secret manager.
 
 ## Verification
 
