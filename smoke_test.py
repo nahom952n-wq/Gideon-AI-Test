@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert "AI Providers &amp; API Keys" in body or "AI Providers & API Keys" in body
         assert "Do not share screenshots of this page" in body
         assert "xAI (Grok)" in body
+        assert "ScholarMind AI" in body
 
         with client.session_transaction():
             pass
@@ -44,4 +45,4 @@ with tempfile.TemporaryDirectory() as tmp:
         assert clear_response.status_code == 200
         assert ApiKeySetting.get("grok") is None
 
-print("Gideon smoke test passed")
+print("ScholarMind AI smoke test passed")
