@@ -34,3 +34,9 @@ jobs:
           FLASK_ENV: development
           FLASK_SECRET_KEY: ci-smoke-test-secret
         run: python smoke_test.py
+
+      - name: Run integration route test
+        env:
+          FLASK_ENV: development
+          FLASK_SECRET_KEY: ci-integration-test-secret
+        run: python integration_test.py
