@@ -8,6 +8,7 @@ from ..models import ChatSession, ChatMessage
 from ..extensions import db
 from ..services.chat_service import ChatService
 from .auth import login_required, current_user
+from .auth import login_required, current_user
 
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 log = logging.getLogger("scholarmind.app")
