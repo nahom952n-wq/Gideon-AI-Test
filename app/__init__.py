@@ -144,6 +144,9 @@ def _init_extensions(app: Flask) -> None:
     global _SERVICES_STARTED
     db.init_app(app)
 
+    if not app.config.get("START_BACKGROUND_SERVICES", True):
+        return
+
     if not scheduler.running:
         scheduler.start()
 
