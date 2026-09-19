@@ -7,6 +7,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from ..models import ChatSession, ChatMessage
 from ..extensions import db
 from ..services.chat_service import ChatService
+from .auth import login_required, current_user
 
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 log = logging.getLogger("scholarmind.app")
@@ -44,11 +45,12 @@ def markdown_to_html(text: str) -> str:
 
 
 @bp.route("/")
+@login_required
 def index():
-    sessions = ChatSession.query.order_by(ChatSession.last_active_at.desc()).limit(10).all()
+    sessions = ChatSession.query.filter_by(user_id=current_user().id).order_by(ChatSession.last_active_at.desc()).limit(10).all()
     requested_id = request.args.get("session_id", type=int)
     active_session = (
-        ChatSession.query.get(requested_id)
+        ChatSession.query.filter_by(id=requested_id, user_id=current_user().id).first()
         if requested_id
         else (sessions[0] if sessions else None)
     )
@@ -65,6 +67,7 @@ def index():
 
 
 @bp.route("/send", methods=["POST"])
+@login_required
 def send():
     data = request.get_json(silent=True) or {}
     user_message = (data.get("message") or "").strip()
@@ -74,12 +77,12 @@ def send():
         return jsonify({"error": "Message is required."}), 400
 
     if session_id:
-        session = ChatSession.query.get(session_id)
+        session = ChatSession.query.filter_by(id=session_id, user_id=current_user().id).first()
     else:
         session = None
 
     if not session:
-        session = ChatSession()
+        session = ChatSession(user_id=current_user().id)
         db.session.add(session)
         db.session.flush()
 
@@ -112,9 +115,10 @@ def send():
 
 
 @bp.route("/<int:session_id>/delete", methods=["POST"])
+@login_required
 def delete_session(session_id: int):
     """Delete a chat session and all its messages."""
-    session = ChatSession.query.get_or_404(session_id)
+    session = ChatSession.query.filter_by(id=session_id, user_id=current_user().id).first_or_404()
     
     # Delete all messages in the session
     ChatMessage.query.filter_by(session_id=session_id).delete()
