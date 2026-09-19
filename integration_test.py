@@ -28,6 +28,9 @@ with tempfile.TemporaryDirectory() as tmp:
 
     client = app.test_client()
 
+    register = client.post("/auth/register", data={"display_name": "Integration Admin", "email": "integration@example.com", "password": "integration-password-123"}, follow_redirects=False)
+    assert register.status_code == 302
+
     # Core known pages/APIs.
     core_paths = [
         "/",
