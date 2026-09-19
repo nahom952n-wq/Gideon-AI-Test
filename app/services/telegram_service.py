@@ -482,14 +482,52 @@ _service_lock = threading.Lock()
 
 
 def get_service() -> Optional[TelegramService]:
-    """
-    Return no backend Telegram client.
+    """Return the process-wide Telethon service, creating it from saved credentials."""
+    global _service_instance
 
-    Telegram Web is the sole Telegram data source. This compatibility
-    accessor remains so legacy settings and source pages can load without
-    requiring backend API credentials or a Telethon session.
-    """
-    return None
+    from flask import current_app
+    from ..models.api_key import ApiKeySetting
+
+    api_id = (
+        ApiKeySetting.get("telegram_user", "api_id")
+        or current_app.config.get("TELEGRAM_API_ID")
+        or os.environ.get("TELEGRAM_API_ID")
+    )
+    api_hash = (
+        ApiKeySetting.get("telegram_user", "api_hash")
+        or current_app.config.get("TELEGRAM_API_HASH")
+        or os.environ.get("TELEGRAM_API_HASH")
+    )
+
+    if not api_id or not api_hash:
+        return None
+
+    try:
+        api_id = int(api_id)
+    except (TypeError, ValueError):
+        log.error("Telegram API ID must be an integer")
+        return None
+
+    session_dir = Path(current_app.config["SESSIONS_DIR"])
+    session_dir.mkdir(parents=True, exist_ok=True)
+    session_path = session_dir / "scholarmind"
+
+    with _service_lock:
+        if (
+            _service_instance is None
+            or _service_instance._api_id != api_id
+            or _service_instance._api_hash != str(api_hash)
+        ):
+            if _service_instance is not None:
+                try:
+                    _service_instance.disconnect()
+                except Exception:
+                    pass
+            _service_instance = TelegramService(api_id, str(api_hash), session_path)
+            # Restore an existing authorized session if one is available.
+            _service_instance.connect_saved_session()
+
+    return _service_instance
 
 
 def reset_service() -> None:
