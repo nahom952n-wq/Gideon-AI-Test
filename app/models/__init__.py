@@ -16,6 +16,7 @@ from .notification import NotificationLog
 from .chat import ChatSession, ChatMessage
 from .api_key import ApiKeySetting, PROVIDERS, PROVIDER_META
 from .telegram_bot_user import TelegramBotUser
+from .user import User
 
 __all__ = [
     "Source",
@@ -36,4 +37,5 @@ __all__ = [
     "PROVIDERS",
     "PROVIDER_META",
     "TelegramBotUser",
+    "User",
 ]
