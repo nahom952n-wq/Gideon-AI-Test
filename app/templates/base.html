@@ -16,9 +16,9 @@
 
   <aside id="sidebar" class="app-sidebar" aria-label="Primary navigation">
     <div class="sidebar-inner">
-      <a href="{{ url_for('dashboard.index') }}" class="sidebar-brand" title="Gideon home">
-        <img src="{{ url_for('static', filename='img/gideon-logo.png') }}" alt="Gideon logo">
-        <span class="brand-copy"><strong>GIDEON</strong><small>OPPORTUNITY INTELLIGENCE</small></span>
+      <a href="{{ url_for('dashboard.index') }}" class="sidebar-brand" title="ScholarMind AI home">
+        <img src="{{ url_for('static', filename='img/gideon-logo.png') }}" alt="ScholarMind AI logo">
+        <span class="brand-copy"><strong>SCHOLARMIND AI</strong><small>OPPORTUNITY INTELLIGENCE</small></span>
       </a>
 
       <div class="sidebar-rule"></div>
@@ -55,7 +55,7 @@
       <div class="topbar-left">
         <button class="icon-button sidebar-control" id="sidebarCollapse" type="button" title="Collapse sidebar" aria-label="Collapse sidebar"><i class="bi bi-layout-sidebar-inset"></i></button>
         <button class="icon-button mobile-sidebar-control" id="sidebarToggle" type="button" title="Open navigation" aria-label="Open navigation"><i class="bi bi-list"></i></button>
-        <div class="page-heading"><span class="eyebrow">GIDEON / WORKSPACE</span><strong>{% block page_title %}{% endblock %}</strong></div>
+        <div class="page-heading"><span class="eyebrow">SCHOLARMIND AI / WORKSPACE</span><strong>{% block page_title %}{% endblock %}</strong></div>
       </div>
       <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
     </header>
@@ -69,7 +69,7 @@
     </div>
 
     <main class="page-main">{% block content %}{% endblock %}</main>
-    <footer class="app-footer"><span>GIDEON</span> · Opportunity Intelligence Platform · {{ current_year }}</footer>
+    <footer class="app-footer"><span>SCHOLARMIND AI</span> · Opportunity Intelligence Platform · {{ current_year }}</footer>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
