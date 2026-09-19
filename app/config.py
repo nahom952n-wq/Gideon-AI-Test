@@ -26,10 +26,24 @@ DEPRECATED_GEMINI_MODELS = {"gemini-1.5-flash", "gemini-2.5-flash"}
 class BaseConfig:
     """Shared settings for all environments."""
 
-    # Never ship a predictable production secret. A random fallback keeps
-    # local development usable while still making production deployments
-    # fail fast unless an explicit secret is supplied.
-    SECRET_KEY: str = os.environ.get("FLASK_SECRET_KEY") or secrets.token_urlsafe(32)
+    # Production requires an explicit secret. For local development, persist a
+    # generated secret so encrypted API keys remain decryptable across restarts.
+    _secret_file = BASE_DIR / ".flask_dev_secret"
+    if os.environ.get("FLASK_SECRET_KEY"):
+        SECRET_KEY: str = os.environ["FLASK_SECRET_KEY"]
+    elif _secret_file.exists():
+        SECRET_KEY: str = _secret_file.read_text(encoding="utf-8").strip()
+    else:
+        SECRET_KEY = secrets.token_urlsafe(32)
+        try:
+            _secret_file.parent.mkdir(parents=True, exist_ok=True)
+            _secret_file.write_text(SECRET_KEY, encoding="utf-8")
+            try:
+                _secret_file.chmod(0o600)
+            except OSError:
+                pass
+        except OSError:
+            pass
 
     BASE_DIR: Path = BASE_DIR
     DATA_DIR: Path = BASE_DIR / "data"
@@ -40,6 +54,7 @@ class BaseConfig:
 
     SQLALCHEMY_DATABASE_URI: str = f"sqlite:///{DATA_DIR / 'scholarmind.db'}"
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
+    START_BACKGROUND_SERVICES: bool = os.environ.get("SCHOLARMIND_START_BACKGROUND_SERVICES", "true").lower() == "true"
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "connect_args": {"check_same_thread": False},
         "pool_size": 5,

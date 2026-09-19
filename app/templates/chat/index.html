@@ -39,7 +39,7 @@
         <div class="empty-state py-4" id="emptyState">
           <div class="empty-icon"><i class="bi bi-chat-dots"></i></div>
           <h6>Ask about your opportunities</h6>
-          <p>I search your Gideon database first, then use general knowledge when needed.</p>
+          <p>I search your ScholarMind AI database first, then use general knowledge when needed.</p>
           <div class="mt-4 d-flex flex-wrap justify-content-center gap-2">
             {% for suggestion in ['Find scholarships in Germany', 'Computer Science opportunities', 'What deadlines are this month?', 'Show full-funding scholarships'] %}
             <button class="btn btn-sm btn-outline-secondary" onclick="sendSuggestion('{{ suggestion }}')">{{ suggestion }}</button>

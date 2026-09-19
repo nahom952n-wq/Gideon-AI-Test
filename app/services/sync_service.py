@@ -50,16 +50,6 @@ def sync_source(source_id: int, app) -> dict:
 
 def _sync_one(source: Source) -> dict:
     """Inner: run fetch + ingest for one Source. DB session must already be open."""
-    if source.source_type == "telegram":
-        source.health_status = "ok"
-        source.health_message = "Fed by the local Telegram Web client"
-        return {
-            "fetched": 0,
-            "ingested": 0,
-            "error": None,
-            "message": source.health_message,
-        }
-
     adapter_class = SourceRegistry.get(source.source_type)
     if adapter_class is None:
         log.warning("No adapter registered for source_type=%r (id=%d)", source.source_type, source.id)

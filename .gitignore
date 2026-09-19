@@ -1,4 +1,5 @@
 # Environment secrets — never commit
+.flask_dev_secret
 .env
 
 # Telethon session files — contain your Telegram login, never commit
