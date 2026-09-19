@@ -20,6 +20,7 @@ from flask import (
 
 from ..config import DEFAULT_GEMINI_MODEL
 from ..models.api_key import ApiKeySetting, PROVIDERS, PROVIDER_META
+from .auth import admin_required
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 log = logging.getLogger("scholarmind.settings")
@@ -230,6 +231,7 @@ def _api_key_page_data(cfg: dict) -> dict:
 
 
 @bp.route("/")
+@admin_required
 def index():
     cfg = current_app.config
     pipeline_cfg = {
@@ -251,6 +253,7 @@ def index():
 
 
 @bp.route("/integrations/probe")
+@admin_required
 def probe_integration():
     name = request.args.get("name", "")
     if name == "telegram_bot":
@@ -262,6 +265,7 @@ def probe_integration():
 
 
 @bp.route("/api-keys/save", methods=["POST"])
+@admin_required
 def save_api_key():
     from ..extensions import db
 
@@ -290,6 +294,7 @@ def save_api_key():
 
 
 @bp.route("/api-keys/clear", methods=["POST"])
+@admin_required
 def clear_api_key():
     from ..extensions import db
 
@@ -307,6 +312,7 @@ def clear_api_key():
 
 
 @bp.route("/api-keys/test", methods=["POST"])
+@admin_required
 def test_api_key():
     data = request.get_json(silent=True) or {}
     provider = str(data.get("provider", "")).strip()

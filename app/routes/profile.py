@@ -3,6 +3,8 @@
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import UserProfile
+from .auth import login_required, current_user
+from .auth import login_required, current_user
 from ..extensions import db
 
 bp = Blueprint("profile", __name__, url_prefix="/profile")
@@ -10,21 +12,29 @@ log = logging.getLogger("scholarmind.app")
 
 
 def _get_or_create_profile() -> UserProfile:
-    profile = UserProfile.query.get(1)
+    user = current_user()
+    profile = UserProfile.query.filter_by(user_id=user.id).first()
     if not profile:
-        profile = UserProfile(id=1)
+        legacy = UserProfile.query.filter_by(id=1, user_id=None).first()
+        if legacy:
+            profile = legacy
+            profile.user_id = user.id
+        else:
+            profile = UserProfile(user_id=user.id)
         db.session.add(profile)
         db.session.commit()
     return profile
 
 
 @bp.route("/")
+@login_required
 def edit():
     profile = _get_or_create_profile()
     return render_template("profile/edit.html", profile=profile)
 
 
 @bp.route("/save", methods=["POST"])
+@login_required
 def save():
     profile = _get_or_create_profile()
 

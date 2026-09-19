@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, session, current_app
 from ..models import Application, Source, RawItem
 from ..models.opportunity import Opportunity, OpportunityType
 from ..extensions import db
+from .auth import login_required
 from sqlalchemy import func
 
 bp = Blueprint("dashboard", __name__)
@@ -41,6 +42,7 @@ def _has_key(provider: str, env_name: str) -> bool:
 
 
 @bp.route("/")
+@login_required
 def index():
     """Main dashboard with overview statistics and Focus Mode."""
     focus = _get_focus()

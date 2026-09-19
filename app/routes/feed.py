@@ -4,13 +4,14 @@ from flask import Blueprint, render_template
 
 from ..extensions import db
 from ..models import Opportunity, UserProfile, Application
+from .auth import login_required, current_user
 
 bp = Blueprint("feed", __name__, url_prefix="/feed")
 
 
 def _profile() -> UserProfile:
-    profile = UserProfile.query.get(1)
-    return profile or UserProfile(id=1)
+    profile = UserProfile.query.filter_by(user_id=current_user().id).first()
+    return profile or UserProfile(user_id=current_user().id)
 
 
 def _contains(values: list, text: str) -> bool:
@@ -61,6 +62,7 @@ def _score(opportunity: Opportunity, profile: UserProfile) -> tuple[int, list[st
 
 
 @bp.route("/")
+@login_required
 def index():
     profile = _profile()
     opportunities = (
@@ -71,7 +73,7 @@ def index():
     )
     tracked_ids = {
         row[0] for row in db.session.query(Application.opportunity_id)
-        .filter(Application.opportunity_id.isnot(None)).all()
+        .filter(Application.user_id == current_user().id, Application.opportunity_id.isnot(None)).all()
     }
     ranked = []
     news = []

@@ -17,6 +17,7 @@ from ..models import (
 )
 from ..models.opportunity import Opportunity, OpportunityType
 from ..extensions import db
+from .auth import login_required, current_user, admin_required
 
 bp = Blueprint("scholarships", __name__, url_prefix="/scholarships")
 log = logging.getLogger("scholarmind.app")
@@ -168,10 +169,11 @@ def reanalyze(opportunity_id: int):
 
 
 @bp.route("/<int:opportunity_id>/track", methods=["POST"])
+@login_required
 def track(opportunity_id: int):
     """Move an opportunity into the application tracker."""
     opportunity = Opportunity.query.get_or_404(opportunity_id)
-    existing = Application.query.filter_by(opportunity_id=opportunity.id).first()
+    existing = Application.query.filter_by(opportunity_id=opportunity.id, user_id=current_user().id).first()
     if existing:
         opportunity.is_active = False
         db.session.commit()
@@ -206,6 +208,7 @@ def track(opportunity_id: int):
         application.status = ApplicationStatus.INTERESTED
     else:
         application = Application(
+            user_id=current_user().id,
             scholarship_id=legacy.id,
             opportunity_id=opportunity.id,
             status=ApplicationStatus.INTERESTED,

@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 with tempfile.TemporaryDirectory() as tmp:
-    os.environ["GIDEON_TEST_HOME"] = tmp
+    os.environ["GIDEON_RUNTIME_DIR"] = tmp
     os.environ["FLASK_ENV"] = "development"
     os.environ["FLASK_SECRET_KEY"] = "smoke-test-secret"
     os.environ["GEMINI_API_KEY"] = ""
@@ -19,6 +19,8 @@ with tempfile.TemporaryDirectory() as tmp:
 
     with app.app_context():
         client = app.test_client()
+        register = client.post("/auth/register", data={"display_name": "Smoke Admin", "email": "smoke@example.com", "password": "smoke-password-123"}, follow_redirects=False)
+        assert register.status_code == 302
         response = client.get("/settings/")
         assert response.status_code == 200, response.status_code
         body = response.get_data(as_text=True)
