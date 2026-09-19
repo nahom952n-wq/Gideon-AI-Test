@@ -9,10 +9,11 @@ import os
 import tempfile
 
 with tempfile.TemporaryDirectory() as tmp:
-    os.environ["GIDEON_TEST_HOME"] = tmp
+    os.environ["GIDEON_RUNTIME_DIR"] = tmp
     os.environ["FLASK_ENV"] = "development"
     os.environ["FLASK_SECRET_KEY"] = "integration-test-secret"
     os.environ["GEMINI_API_KEY"] = ""
+    os.environ["SCHOLARMIND_START_BACKGROUND_SERVICES"] = "false"
     os.environ["OPENAI_API_KEY"] = ""
     os.environ["ANTHROPIC_API_KEY"] = ""
     os.environ["GROK_API_KEY"] = ""
@@ -30,7 +31,6 @@ with tempfile.TemporaryDirectory() as tmp:
     # Core known pages/APIs.
     core_paths = [
         "/",
-        "/dashboard/",
         "/scholarships/",
         "/tracker/",
         "/profile/",
@@ -56,28 +56,27 @@ with tempfile.TemporaryDirectory() as tmp:
             f"{response.get_data(as_text=True)[:500]}"
         )
 
-    # Exercise every GET route registered by the application. For dynamic
-    # integer parameters, use 1 so missing records should produce 404 rather
-    # than a server error.
+    # Exercise every GET route registered by the application. Build dynamic
+    # URLs using Werkzeug's own Rule builder so converter syntax is handled
+    # correctly (for example <int:id>). A missing record may legitimately 404;
+    # the important assertion is that no route crashes with a 5xx response.
     checked = 0
+    from werkzeug.routing import BuildError
+
     for rule in app.url_map.iter_rules():
-        if "GET" not in rule.methods:
-            continue
-        if rule.endpoint == "static":
+        if "GET" not in rule.methods or rule.endpoint == "static":
             continue
 
-        path = str(rule)
+        values = {}
         for variable in rule.arguments:
             converter = rule._converters.get(variable)
-            if converter and converter.regex == r"\\d+":
-                replacement = "1"
-            elif converter and converter.regex:
-                replacement = "test"
-            else:
-                replacement = "test"
-            path = path.replace(f"<{variable}>", replacement)
-            # Converter syntax may include a converter name.
-            path = path.replace(f"<{converter.__class__.__name__.replace('Converter', '').lower()}:{variable}>", replacement)
+            converter_name = converter.__class__.__name__ if converter else ""
+            values[variable] = "1" if converter_name == "IntegerConverter" else "test"
+
+        try:
+            _, path = rule.build(values, append_unknown=False)
+        except BuildError:
+            continue
 
         response = client.get(path)
         assert response.status_code < 500, (
@@ -87,7 +86,7 @@ with tempfile.TemporaryDirectory() as tmp:
         checked += 1
 
     # The branding and health contract should be stable.
-    dashboard = client.get("/dashboard/")
+    dashboard = client.get("/")
     assert dashboard.status_code == 200
     assert "ScholarMind AI" in dashboard.get_data(as_text=True)
 
