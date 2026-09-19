@@ -48,7 +48,7 @@
         <div class="card-body">
           <span class="badge bg-warning-subtle text-warning mb-2">Policy / News</span>
           <h6 class="fw-semibold">{{ opportunity.title or 'Global update' }}</h6>
-          <p class="text-muted small">{{ opportunity.organization or 'Gideon sources' }}{% if opportunity.country %} · {{ opportunity.country }}{% endif %}</p>
+          <p class="text-muted small">{{ opportunity.organization or 'ScholarMind AI sources' }}{% if opportunity.country %} · {{ opportunity.country }}{% endif %}</p>
           <p class="small mb-0">{{ opportunity.summary or 'Review this update for potential impact on international students and opportunities.' }}</p>
           <a class="btn btn-sm btn-link px-0 mt-2" href="{{ url_for('scholarships.detail', opportunity_id=opportunity.id) }}">Read update</a>
         </div>
