@@ -10,6 +10,7 @@ class ChatSession(db.Model):
     __tablename__ = "chat_sessions"
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     last_active_at = db.Column(db.DateTime, default=datetime.utcnow)
     title = db.Column(db.String(200), nullable=True)
