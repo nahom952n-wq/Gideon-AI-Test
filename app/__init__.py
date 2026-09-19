@@ -48,10 +48,31 @@ def create_app(env: str | None = None) -> Flask:
     with app.app_context():
         db.create_all()
         _ensure_application_opportunity_column(app)
+        _ensure_multiuser_columns(app)
         _start_telegram_bot(app)
         app.logger.info("ScholarMind AI started (env=%s)", env)
 
     return app
+
+
+def _ensure_multiuser_columns(app: Flask) -> None:
+    """Add nullable ownership columns so existing databases can migrate safely."""
+    migrations = {
+        "user_profile": ("user_id", "INTEGER"),
+        "chat_sessions": ("user_id", "INTEGER"),
+        "applications": ("user_id", "INTEGER"),
+    }
+    inspector = inspect(db.engine)
+    tables = set(inspector.get_table_names())
+    with db.engine.begin() as connection:
+        for table, (column, sql_type) in migrations.items():
+            if table not in tables:
+                continue
+            columns = {c["name"] for c in inspector.get_columns(table)}
+            if column not in columns:
+                connection.exec_driver_sql(
+                    f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}"
+                )
 
 
 def _ensure_application_opportunity_column(app: Flask) -> None:
@@ -211,6 +232,7 @@ def _run_enrichment(app: Flask) -> None:
 
 def _register_blueprints(app: Flask) -> None:
     """Register all route blueprints."""
+    from .routes.auth       import bp as auth_bp
     from .routes.dashboard   import bp as dashboard_bp
     from .routes.scholarships import bp as scholarships_bp
     from .routes.sources     import bp as sources_bp
@@ -223,6 +245,7 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.api         import bp as api_bp
     from .routes.settings    import bp as settings_bp
 
+    app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(scholarships_bp)
     app.register_blueprint(sources_bp)
