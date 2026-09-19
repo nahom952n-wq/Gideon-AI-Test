@@ -4,15 +4,17 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import Application, ApplicationStatus, StatusHistory, Scholarship
 from ..extensions import db
+from .auth import login_required, current_user
 
 bp = Blueprint("tracker", __name__, url_prefix="/tracker")
 log = logging.getLogger("scholarmind.app")
 
 
 @bp.route("/")
+@login_required
 def index():
     status_filter = request.args.get("status", "")
-    query = Application.query.outerjoin(Scholarship)
+    query = Application.query.filter_by(user_id=current_user().id).outerjoin(Scholarship)
     if status_filter:
         query = query.filter(Application.status == status_filter)
     applications = query.order_by(Application.updated_at.desc()).all()
@@ -25,14 +27,15 @@ def index():
 
 
 @bp.route("/add/<int:scholarship_id>", methods=["POST"])
+@login_required
 def add(scholarship_id: int):
     scholarship = Scholarship.query.get_or_404(scholarship_id)
-    existing = Application.query.filter_by(scholarship_id=scholarship_id).first()
+    existing = Application.query.filter_by(scholarship_id=scholarship_id, user_id=current_user().id).first()
     if existing:
         flash("Already tracking this scholarship.", "info")
         return redirect(url_for("tracker.index"))
 
-    app = Application(scholarship_id=scholarship_id, status=ApplicationStatus.INTERESTED)
+    app = Application(scholarship_id=scholarship_id, user_id=current_user().id, status=ApplicationStatus.INTERESTED)
     db.session.add(app)
     db.session.flush()
 
@@ -50,8 +53,9 @@ def add(scholarship_id: int):
 
 
 @bp.route("/<int:app_id>/update", methods=["POST"])
+@login_required
 def update(app_id: int):
-    application = Application.query.get_or_404(app_id)
+    application = Application.query.filter_by(id=app_id, user_id=current_user().id).first_or_404()
     new_status = request.form.get("status", "").strip()
     notes = request.form.get("notes", "").strip()
 
