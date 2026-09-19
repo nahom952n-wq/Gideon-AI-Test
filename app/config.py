@@ -54,6 +54,9 @@ class BaseConfig:
 
     SQLALCHEMY_DATABASE_URI: str = f"sqlite:///{DATA_DIR / 'scholarmind.db'}"
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
+    SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_SAMESITE: str = "Lax"
+    SESSION_COOKIE_SECURE: bool = os.environ.get("SCHOLARMIND_SECURE_COOKIES", "false").lower() == "true"
     START_BACKGROUND_SERVICES: bool = os.environ.get("SCHOLARMIND_START_BACKGROUND_SERVICES", "true").lower() == "true"
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "connect_args": {"check_same_thread": False},
