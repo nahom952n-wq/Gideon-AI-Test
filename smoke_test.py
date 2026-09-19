@@ -4,10 +4,11 @@ import tempfile
 from pathlib import Path
 
 with tempfile.TemporaryDirectory() as tmp:
-    os.environ["GIDEON_TEST_HOME"] = tmp
+    os.environ["GIDEON_RUNTIME_DIR"] = tmp
     os.environ["FLASK_ENV"] = "development"
     os.environ["FLASK_SECRET_KEY"] = "smoke-test-secret"
     os.environ["GEMINI_API_KEY"] = ""
+    os.environ["SCHOLARMIND_START_BACKGROUND_SERVICES"] = "false"
 
     from app import create_app
     from app.extensions import db
