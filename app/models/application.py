@@ -48,6 +48,7 @@ class Application(db.Model):
     __tablename__ = "applications"
 
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     scholarship_id = db.Column(
         db.Integer, db.ForeignKey("scholarships.id"), nullable=True, unique=True
     )
