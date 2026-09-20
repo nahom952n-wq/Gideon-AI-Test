@@ -233,7 +233,6 @@ def _run_enrichment(app: Flask) -> None:
 def _register_blueprints(app: Flask) -> None:
     """Register all route blueprints."""
     from .routes.auth       import bp as auth_bp
-    from .routes.auth       import bp as auth_bp
     from .routes.dashboard   import bp as dashboard_bp
     from .routes.scholarships import bp as scholarships_bp
     from .routes.sources     import bp as sources_bp
@@ -246,7 +245,6 @@ def _register_blueprints(app: Flask) -> None:
     from .routes.api         import bp as api_bp
     from .routes.settings    import bp as settings_bp
 
-    app.register_blueprint(auth_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(scholarships_bp)
