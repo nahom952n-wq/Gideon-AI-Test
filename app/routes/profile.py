@@ -4,7 +4,6 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import UserProfile
 from .auth import login_required, current_user
-from .auth import login_required, current_user
 from ..extensions import db
 
 bp = Blueprint("profile", __name__, url_prefix="/profile")
