@@ -202,7 +202,9 @@ def track(opportunity_id: int):
         db.session.add(legacy)
         db.session.flush()
 
-    application = Application.query.filter_by(\n        scholarship_id=legacy.id, user_id=current_user().id\n    ).first()
+    application = Application.query.filter_by(
+        scholarship_id=legacy.id, user_id=current_user().id
+    ).first()
     if application:
         application.opportunity_id = opportunity.id
         application.status = ApplicationStatus.INTERESTED
