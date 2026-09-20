@@ -475,28 +475,31 @@ class TelegramService:
 
 
 # ---------------------------------------------------------------------------
-# Singleton accessor — lazily created from app config
+# Per-user service registry — each authenticated ScholarMind user gets an
+# isolated Telethon client and session file. API ID/hash are application-level
+# credentials; the Telegram account session is strictly user-level.
 # ---------------------------------------------------------------------------
-_service_instance: Optional[TelegramService] = None
+_services: dict[int, TelegramService] = {}
 _service_lock = threading.Lock()
 
 
-def get_service() -> Optional[TelegramService]:
-    """Return the process-wide Telethon service, creating it from saved credentials."""
-    global _service_instance
+def get_service(user_id: int | None) -> Optional[TelegramService]:
+    """Return the Telegram service isolated to one ScholarMind user."""
+    if not user_id:
+        return None
 
     from flask import current_app
     from ..models.api_key import ApiKeySetting
 
     api_id = (
-        ApiKeySetting.get("telegram_user", "api_id")
-        or current_app.config.get("TELEGRAM_API_ID")
+        current_app.config.get("TELEGRAM_API_ID")
         or os.environ.get("TELEGRAM_API_ID")
+        or ApiKeySetting.get("telegram_user", "api_id")
     )
     api_hash = (
-        ApiKeySetting.get("telegram_user", "api_hash")
-        or current_app.config.get("TELEGRAM_API_HASH")
+        current_app.config.get("TELEGRAM_API_HASH")
         or os.environ.get("TELEGRAM_API_HASH")
+        or ApiKeySetting.get("telegram_user", "api_hash")
     )
 
     if not api_id or not api_hash:
@@ -508,30 +511,37 @@ def get_service() -> Optional[TelegramService]:
         log.error("Telegram API ID must be an integer")
         return None
 
-    session_dir = Path(current_app.config["SESSIONS_DIR"])
+    session_dir = Path(current_app.config["SESSIONS_DIR"]) / "users"
     session_dir.mkdir(parents=True, exist_ok=True)
-    session_path = session_dir / "scholarmind"
+    session_path = session_dir / f"user_{int(user_id)}"
 
     with _service_lock:
+        service = _services.get(int(user_id))
         if (
-            _service_instance is None
-            or _service_instance._api_id != api_id
-            or _service_instance._api_hash != str(api_hash)
+            service is None
+            or service._api_id != api_id
+            or service._api_hash != str(api_hash)
         ):
-            if _service_instance is not None:
+            if service is not None:
                 try:
-                    _service_instance.disconnect()
+                    service.disconnect()
                 except Exception:
                     pass
-            _service_instance = TelegramService(api_id, str(api_hash), session_path)
-            # Restore an existing authorized session if one is available.
-            _service_instance.connect_saved_session()
+            service = TelegramService(api_id, str(api_hash), session_path)
+            _services[int(user_id)] = service
+            service.connect_saved_session()
 
-    return _service_instance
+    return service
 
 
-def reset_service() -> None:
-    """Force the singleton to be recreated on next get_service() call."""
-    global _service_instance
+def reset_service(user_id: int | None) -> None:
+    """Disconnect and remove one user's Telegram service from the registry."""
+    if not user_id:
+        return
     with _service_lock:
-        _service_instance = None
+        service = _services.pop(int(user_id), None)
+        if service is not None:
+            try:
+                service.disconnect()
+            except Exception:
+                pass
