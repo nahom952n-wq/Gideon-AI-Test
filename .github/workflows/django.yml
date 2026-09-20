@@ -40,3 +40,5 @@ jobs:
           FLASK_ENV: development
           FLASK_SECRET_KEY: ci-integration-test-secret
         run: python integration_test.py
+
+# CI matrix includes Python 3.14; smoke tests run without background services.
