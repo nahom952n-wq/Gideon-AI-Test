@@ -31,7 +31,7 @@ log = logging.getLogger("scholarmind.app")
 @login_required
 def manage():
     sources = [
-        source for source in Source.query.order_by(Source.created_at.desc()).all()
+        source for source in Source.query.filter_by(user_id=current_user().id).order_by(Source.created_at.desc()).all()
         if not source.config.get("deleted", False)
     ]
     # Attach raw item counts
@@ -91,7 +91,7 @@ def add():
     if category:
         config["category"] = category
 
-    source = Source(name=name, source_type=source_type)
+    source = Source(name=name, source_type=source_type, user_id=current_user().id)
     source.config = config
     db.session.add(source)
     db.session.commit()
@@ -108,7 +108,7 @@ def add():
 @bp.route("/<int:source_id>/toggle", methods=["POST"])
 @login_required
 def toggle(source_id: int):
-    source = Source.query.get_or_404(source_id)
+    source = Source.query.filter_by(id=source_id, user_id=current_user().id).first_or_404()
     source.is_active = not source.is_active
     db.session.commit()
     state = "activated" if source.is_active else "paused"
@@ -212,7 +212,7 @@ def sync_one(source_id: int):
     app = current_app._get_current_object()
 
     from ..services.sync_service import sync_source
-    result = sync_source(source_id=source_id, app=app)
+    result = sync_source(source_id=source_id, app=app, user_id=current_user().id)
 
     if result.get("error"):
         flash(f"Sync failed for '{source.name}': {result['error']}", "danger")
@@ -229,7 +229,7 @@ def sync_one(source_id: int):
 def sync_all():
     app = current_app._get_current_object()
     from ..services.sync_service import sync_all_sources
-    summary = sync_all_sources(app=app)
+    summary = sync_all_sources(app=app, user_id=current_user().id)
 
     total_fetched = sum(v.get("fetched", 0) for v in summary.values())
     total_ingested = sum(v.get("ingested", 0) for v in summary.values())
