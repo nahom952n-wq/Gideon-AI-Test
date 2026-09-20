@@ -31,6 +31,34 @@ with tempfile.TemporaryDirectory() as tmp:
     register = client.post("/auth/register", data={"display_name": "Integration Admin", "email": "integration@example.com", "password": "integration-password-123"}, follow_redirects=False)
     assert register.status_code == 302
 
+    # Verify per-user profile isolation.
+    profile_save = client.post(
+        "/profile/save",
+        data={"name": "Integration Admin Private", "email": "integration@example.com"},
+        follow_redirects=False,
+    )
+    assert profile_save.status_code == 302
+    assert client.post("/auth/logout", follow_redirects=False).status_code == 302
+
+    register_user_two = client.post(
+        "/auth/register",
+        data={
+            "display_name": "Second User",
+            "email": "second@example.com",
+            "password": "second-password-123",
+        },
+        follow_redirects=False,
+    )
+    assert register_user_two.status_code == 302
+    second_profile = client.get("/profile/")
+    assert second_profile.status_code == 200
+    assert "Integration Admin Private" not in second_profile.get_data(as_text=True)
+
+    # Non-admin users must not access owner/admin controls.
+    assert client.get("/settings/").status_code == 302
+    assert client.get("/admin/backups/").status_code == 302
+    assert client.get("/sources/").status_code == 302
+
     # Core known pages/APIs.
     core_paths = [
         "/",
