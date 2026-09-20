@@ -50,10 +50,10 @@ class Application(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
     scholarship_id = db.Column(
-        db.Integer, db.ForeignKey("scholarships.id"), nullable=True, unique=True
+        db.Integer, db.ForeignKey("scholarships.id"), nullable=True
     )
     opportunity_id = db.Column(
-        db.Integer, db.ForeignKey("opportunities.id"), nullable=True, unique=True
+        db.Integer, db.ForeignKey("opportunities.id"), nullable=True
     )
     status = db.Column(
         db.String(20),
