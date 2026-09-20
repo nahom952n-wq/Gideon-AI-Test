@@ -17,6 +17,7 @@ from ..models import (
     NotificationLog,
 )
 from ..extensions import db
+from .auth import login_required, current_user
 
 bp = Blueprint("sources", __name__, url_prefix="/sources")
 log = logging.getLogger("scholarmind.app")
@@ -27,6 +28,7 @@ log = logging.getLogger("scholarmind.app")
 # ---------------------------------------------------------------------------
 
 @bp.route("/")
+@login_required
 def manage():
     sources = [
         source for source in Source.query.order_by(Source.created_at.desc()).all()
@@ -38,7 +40,7 @@ def manage():
         counts[s.id] = RawItem.query.filter_by(source_id=s.id).count()
 
     from ..services.telegram_service import get_service
-    tg_service = get_service()
+    tg_service = get_service(current_user().id)
     tg_connected = tg_service is not None and tg_service.is_connected()
     tg_configured = current_app.config.get("TELEGRAM_API_ID") and current_app.config.get("TELEGRAM_API_HASH")
 
@@ -57,6 +59,7 @@ def manage():
 # ---------------------------------------------------------------------------
 
 @bp.route("/add", methods=["POST"])
+@login_required
 def add():
     name = request.form.get("name", "").strip()
     source_type = request.form.get("source_type", "").strip()
@@ -103,6 +106,7 @@ def add():
 # ---------------------------------------------------------------------------
 
 @bp.route("/<int:source_id>/toggle", methods=["POST"])
+@login_required
 def toggle(source_id: int):
     source = Source.query.get_or_404(source_id)
     source.is_active = not source.is_active
@@ -113,6 +117,7 @@ def toggle(source_id: int):
 
 
 @bp.route("/<int:source_id>/delete", methods=["POST"])
+@login_required
 def delete(source_id: int):
     source = Source.query.get_or_404(source_id)
     name = source.name
@@ -201,6 +206,7 @@ def delete(source_id: int):
 # ---------------------------------------------------------------------------
 
 @bp.route("/<int:source_id>/sync", methods=["POST"])
+@login_required
 def sync_one(source_id: int):
     source = Source.query.get_or_404(source_id)
     app = current_app._get_current_object()
@@ -219,6 +225,7 @@ def sync_one(source_id: int):
 
 
 @bp.route("/sync-all", methods=["POST"])
+@login_required
 def sync_all():
     app = current_app._get_current_object()
     from ..services.sync_service import sync_all_sources
@@ -240,6 +247,7 @@ def sync_all():
 # ---------------------------------------------------------------------------
 
 @bp.route("/telegram/setup", methods=["GET"])
+@login_required
 def telegram_setup():
     from ..services.telegram_service import get_service
     tg_service = get_service()
@@ -262,6 +270,7 @@ def telegram_setup():
 
 
 @bp.route("/telegram/send-code", methods=["POST"])
+@login_required
 def telegram_send_code():
     phone = request.form.get("phone", "").strip()
     if not phone:
@@ -290,6 +299,7 @@ def telegram_send_code():
 
 
 @bp.route("/telegram/verify", methods=["POST"])
+@login_required
 def telegram_verify():
     code = request.form.get("code", "").strip()
     phone = session.get("tg_phone", "")
@@ -327,6 +337,7 @@ def telegram_verify():
 
 
 @bp.route("/telegram/verify-password", methods=["POST"])
+@login_required
 def telegram_verify_password():
     password = request.form.get("password", "")
     if not password:
@@ -362,6 +373,7 @@ def telegram_verify_password():
 
 
 @bp.route("/telegram/disconnect", methods=["POST"])
+@login_required
 def telegram_disconnect():
     from ..services.telegram_service import get_service, reset_service
     service = get_service()
@@ -383,6 +395,7 @@ def telegram_disconnect():
 # ---------------------------------------------------------------------------
 
 @bp.route("/telegram/status")
+@login_required
 def telegram_status():
     from ..services.telegram_service import get_service
     service = get_service()
@@ -395,6 +408,7 @@ def telegram_status():
 
 
 @bp.route("/telegram/dialogs")
+@login_required
 def telegram_dialogs():
     """
     Return all chats the authenticated account can access.
