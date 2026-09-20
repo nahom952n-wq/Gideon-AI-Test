@@ -2,7 +2,7 @@ name: ScholarMind AI CI
 
 on:
   push:
-    branches: ["main", "scholarmind-fixes"]
+    branches: ["main", "scholarmind-fixes", "public-multuser-hardening"]
   pull_request:
     branches: ["main"]
 
