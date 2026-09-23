@@ -14,15 +14,10 @@ def _get_or_create_profile() -> UserProfile:
     user = current_user()
     profile = UserProfile.query.filter_by(user_id=user.id).first()
     if not profile:
-        legacy = UserProfile.query.filter_by(id=1, user_id=None).first()
-        if legacy:
-            profile = legacy
-            profile.user_id = user.id
-        else:
-            # Let the database assign a fresh primary key; never reuse a
-            # legacy profile id for a new user's profile.
-            profile = UserProfile(id=None, user_id=user.id)
-            db.session.add(profile)
+        # Profiles are strictly user-owned. Legacy anonymous rows are left
+        # untouched rather than being reassigned to whichever user logs in.
+        profile = UserProfile(id=None, user_id=user.id)
+        db.session.add(profile)
         db.session.commit()
     return profile
 
