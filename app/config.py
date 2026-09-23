@@ -82,6 +82,8 @@ class BaseConfig:
     )
     GROK_API_KEY: str | None = os.environ.get("GROK_API_KEY")
     GROK_MODEL: str = os.environ.get("GROK_MODEL", "grok-2")
+    AI_PROVIDER_TIMEOUT: int = int(os.environ.get("AI_PROVIDER_TIMEOUT", "60"))
+    AI_MAX_PROMPT_CHARS: int = int(os.environ.get("AI_MAX_PROMPT_CHARS", "20000"))
 
     # --- Telegram Bot API (separate from the Telethon userbot) ---
     TELEGRAM_BOT_TOKEN: str | None = os.environ.get("TELEGRAM_BOT_TOKEN")
