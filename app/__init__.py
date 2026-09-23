@@ -61,6 +61,7 @@ def _ensure_multiuser_columns(app: Flask) -> None:
         "user_profile": ("user_id", "INTEGER"),
         "chat_sessions": ("user_id", "INTEGER"),
         "applications": ("user_id", "INTEGER"),
+        "sources": ("user_id", "INTEGER"),
     }
     inspector = inspect(db.engine)
     tables = set(inspector.get_table_names())

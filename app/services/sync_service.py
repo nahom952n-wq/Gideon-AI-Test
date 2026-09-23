@@ -18,7 +18,7 @@ log = logging.getLogger("scholarmind.app")
 ingestion = IngestionService()
 
 
-def sync_all_sources(app) -> dict:
+def sync_all_sources(app, user_id: int | None = None) -> dict:
     """
     Fetch new items from every active source.
 
@@ -30,18 +30,21 @@ def sync_all_sources(app) -> dict:
     """
     summary = {}
     with app.app_context():
-        sources = Source.query.filter_by(is_active=True).all()
+        query = Source.query.filter_by(is_active=True)
+        if user_id is not None:
+            query = query.filter_by(user_id=user_id)
+        sources = query.all()
         for source in sources:
             summary[source.id] = _sync_one(source)
         db.session.commit()
     return summary
 
 
-def sync_source(source_id: int, app) -> dict:
+def sync_source(source_id: int, app, user_id: int | None = None) -> dict:
     """Sync a single source by ID (used by the manual sync route)."""
     with app.app_context():
         source = Source.query.get(source_id)
-        if not source:
+        if not source or (user_id is not None and source.user_id != user_id):
             return {"error": "Source not found"}
         result = _sync_one(source)
         db.session.commit()
@@ -57,7 +60,7 @@ def _sync_one(source: Source) -> dict:
         source.health_message = f"Unknown source type: {source.source_type}"
         return {"fetched": 0, "ingested": 0, "error": source.health_message}
 
-    adapter = adapter_class(source_id=source.id, config=source.config)
+    adapter = adapter_class(source_id=source.id, config=source.config, user_id=source.user_id)
 
     try:
         status, message = adapter.health_check()

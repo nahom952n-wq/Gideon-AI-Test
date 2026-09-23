@@ -39,13 +39,14 @@ class BaseSource(ABC):
 
     source_type: str = "base"
 
-    def __init__(self, source_id: int, config: dict) -> None:
+    def __init__(self, source_id: int, config: dict, user_id: int | None = None) -> None:
         """
         Args:
             source_id: The database ID of the Source record.
             config: Deserialized config dict from Source.config_json.
         """
         self.source_id = source_id
+        self.user_id = user_id
         self.config = config
 
     @abstractmethod

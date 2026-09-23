@@ -5,7 +5,7 @@ from flask import Blueprint, render_template, request, session, current_app
 from ..models import Application, Source, RawItem
 from ..models.opportunity import Opportunity, OpportunityType
 from ..extensions import db
-from .auth import login_required
+from .auth import login_required, current_user
 from sqlalchemy import func
 
 bp = Blueprint("dashboard", __name__)

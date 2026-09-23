@@ -20,7 +20,7 @@ from flask import (
 
 from ..config import DEFAULT_GEMINI_MODEL
 from ..models.api_key import ApiKeySetting, PROVIDERS, PROVIDER_META
-from .auth import admin_required
+from .auth import admin_required, current_user
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 log = logging.getLogger("scholarmind.settings")
@@ -46,7 +46,7 @@ def _probe_telegram(cfg: dict) -> dict:
     try:
         from ..services.telegram_service import get_service
 
-        service = get_service()
+        service = get_service(current_user().id)
         connected = service is not None and service.is_connected()
         return {
             "status": "connected" if connected else "connection_failed",

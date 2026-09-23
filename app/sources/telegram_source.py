@@ -31,7 +31,7 @@ class TelegramSource(BaseSource):
         min_length = int(self.config.get("min_length", 30))
 
         from ..services.telegram_service import get_service
-        service = get_service()
+        service = get_service(self.user_id)
         if not service or not service.is_connected():
             log.warning(
                 "TelegramSource id=%d: client not connected, skipping fetch", self.source_id

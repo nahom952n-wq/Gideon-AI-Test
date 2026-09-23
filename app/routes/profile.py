@@ -4,7 +4,6 @@ import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import UserProfile
 from .auth import login_required, current_user
-from .auth import login_required, current_user
 from ..extensions import db
 
 bp = Blueprint("profile", __name__, url_prefix="/profile")
@@ -15,12 +14,9 @@ def _get_or_create_profile() -> UserProfile:
     user = current_user()
     profile = UserProfile.query.filter_by(user_id=user.id).first()
     if not profile:
-        legacy = UserProfile.query.filter_by(id=1, user_id=None).first()
-        if legacy:
-            profile = legacy
-            profile.user_id = user.id
-        else:
-            profile = UserProfile(user_id=user.id)
+        # Profiles are strictly user-owned. Legacy anonymous rows are left
+        # untouched rather than being reassigned to whichever user logs in.
+        profile = UserProfile(id=None, user_id=user.id)
         db.session.add(profile)
         db.session.commit()
     return profile

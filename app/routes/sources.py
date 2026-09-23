@@ -17,6 +17,7 @@ from ..models import (
     NotificationLog,
 )
 from ..extensions import db
+from .auth import login_required, current_user
 
 bp = Blueprint("sources", __name__, url_prefix="/sources")
 log = logging.getLogger("scholarmind.app")
@@ -27,9 +28,10 @@ log = logging.getLogger("scholarmind.app")
 # ---------------------------------------------------------------------------
 
 @bp.route("/")
+@login_required
 def manage():
     sources = [
-        source for source in Source.query.order_by(Source.created_at.desc()).all()
+        source for source in Source.query.filter_by(user_id=current_user().id).order_by(Source.created_at.desc()).all()
         if not source.config.get("deleted", False)
     ]
     # Attach raw item counts
@@ -38,7 +40,7 @@ def manage():
         counts[s.id] = RawItem.query.filter_by(source_id=s.id).count()
 
     from ..services.telegram_service import get_service
-    tg_service = get_service()
+    tg_service = get_service(current_user().id)
     tg_connected = tg_service is not None and tg_service.is_connected()
     tg_configured = current_app.config.get("TELEGRAM_API_ID") and current_app.config.get("TELEGRAM_API_HASH")
 
@@ -57,6 +59,7 @@ def manage():
 # ---------------------------------------------------------------------------
 
 @bp.route("/add", methods=["POST"])
+@login_required
 def add():
     name = request.form.get("name", "").strip()
     source_type = request.form.get("source_type", "").strip()
@@ -88,7 +91,7 @@ def add():
     if category:
         config["category"] = category
 
-    source = Source(name=name, source_type=source_type)
+    source = Source(name=name, source_type=source_type, user_id=current_user().id)
     source.config = config
     db.session.add(source)
     db.session.commit()
@@ -103,8 +106,9 @@ def add():
 # ---------------------------------------------------------------------------
 
 @bp.route("/<int:source_id>/toggle", methods=["POST"])
+@login_required
 def toggle(source_id: int):
-    source = Source.query.get_or_404(source_id)
+    source = Source.query.filter_by(id=source_id, user_id=current_user().id).first_or_404()
     source.is_active = not source.is_active
     db.session.commit()
     state = "activated" if source.is_active else "paused"
@@ -113,8 +117,9 @@ def toggle(source_id: int):
 
 
 @bp.route("/<int:source_id>/delete", methods=["POST"])
+@login_required
 def delete(source_id: int):
-    source = Source.query.get_or_404(source_id)
+    source = Source.query.filter_by(id=source_id, user_id=current_user().id).first_or_404()
     name = source.name
 
     raw_items = RawItem.query.filter_by(source_id=source.id).all()
@@ -201,12 +206,13 @@ def delete(source_id: int):
 # ---------------------------------------------------------------------------
 
 @bp.route("/<int:source_id>/sync", methods=["POST"])
+@login_required
 def sync_one(source_id: int):
     source = Source.query.get_or_404(source_id)
     app = current_app._get_current_object()
 
     from ..services.sync_service import sync_source
-    result = sync_source(source_id=source_id, app=app)
+    result = sync_source(source_id=source_id, app=app, user_id=current_user().id)
 
     if result.get("error"):
         flash(f"Sync failed for '{source.name}': {result['error']}", "danger")
@@ -219,10 +225,11 @@ def sync_one(source_id: int):
 
 
 @bp.route("/sync-all", methods=["POST"])
+@login_required
 def sync_all():
     app = current_app._get_current_object()
     from ..services.sync_service import sync_all_sources
-    summary = sync_all_sources(app=app)
+    summary = sync_all_sources(app=app, user_id=current_user().id)
 
     total_fetched = sum(v.get("fetched", 0) for v in summary.values())
     total_ingested = sum(v.get("ingested", 0) for v in summary.values())
@@ -240,9 +247,10 @@ def sync_all():
 # ---------------------------------------------------------------------------
 
 @bp.route("/telegram/setup", methods=["GET"])
+@login_required
 def telegram_setup():
     from ..services.telegram_service import get_service
-    tg_service = get_service()
+    tg_service = get_service(current_user().id)
     tg_configured = bool(
         current_app.config.get("TELEGRAM_API_ID")
         and current_app.config.get("TELEGRAM_API_HASH")
@@ -262,6 +270,7 @@ def telegram_setup():
 
 
 @bp.route("/telegram/send-code", methods=["POST"])
+@login_required
 def telegram_send_code():
     phone = request.form.get("phone", "").strip()
     if not phone:
@@ -269,10 +278,10 @@ def telegram_send_code():
         return redirect(url_for("sources.telegram_setup"))
 
     from ..services.telegram_service import get_service, reset_service
-    reset_service()
+    reset_service(current_user().id)
     session.pop("tg_2fa_required", None)
     session.pop("tg_password_hint", None)
-    service = get_service()
+    service = get_service(current_user().id)
     if not service:
         flash("Telegram API credentials are not configured. Add them in Settings → Telegram Credentials first.", "danger")
         return redirect(url_for("sources.telegram_setup"))
@@ -290,6 +299,7 @@ def telegram_send_code():
 
 
 @bp.route("/telegram/verify", methods=["POST"])
+@login_required
 def telegram_verify():
     code = request.form.get("code", "").strip()
     phone = session.get("tg_phone", "")
@@ -304,7 +314,7 @@ def telegram_verify():
         TelegramTwoFactorRequired,
         get_service,
     )
-    service = get_service()
+    service = get_service(current_user().id)
     if not service:
         flash("Telegram service unavailable.", "danger")
         return redirect(url_for("sources.telegram_setup"))
@@ -327,6 +337,7 @@ def telegram_verify():
 
 
 @bp.route("/telegram/verify-password", methods=["POST"])
+@login_required
 def telegram_verify_password():
     password = request.form.get("password", "")
     if not password:
@@ -341,7 +352,7 @@ def telegram_verify_password():
         return redirect(url_for("sources.telegram_setup"))
 
     from ..services.telegram_service import get_service
-    service = get_service()
+    service = get_service(current_user().id)
     if not service:
         flash("Telegram service unavailable.", "danger")
         return redirect(url_for("sources.telegram_setup"))
@@ -362,12 +373,13 @@ def telegram_verify_password():
 
 
 @bp.route("/telegram/disconnect", methods=["POST"])
+@login_required
 def telegram_disconnect():
     from ..services.telegram_service import get_service, reset_service
-    service = get_service()
+    service = get_service(current_user().id)
     if service:
         service.disconnect()
-    reset_service()
+    reset_service(current_user().id)
     session.pop("tg_phone", None)
     session.pop("tg_phone_code_hash", None)
     session.pop("tg_phone_sent", None)
@@ -383,9 +395,10 @@ def telegram_disconnect():
 # ---------------------------------------------------------------------------
 
 @bp.route("/telegram/status")
+@login_required
 def telegram_status():
     from ..services.telegram_service import get_service
-    service = get_service()
+    service = get_service(current_user().id)
     configured = bool(
         current_app.config.get("TELEGRAM_API_ID")
         and current_app.config.get("TELEGRAM_API_HASH")
@@ -395,6 +408,7 @@ def telegram_status():
 
 
 @bp.route("/telegram/dialogs")
+@login_required
 def telegram_dialogs():
     """
     Return all chats the authenticated account can access.
@@ -403,7 +417,7 @@ def telegram_dialogs():
     Used by the sources UI to let the user browse and select chats.
     """
     from ..services.telegram_service import get_service
-    service = get_service()
+    service = get_service(current_user().id)
     if not service or not service.is_connected():
         return jsonify({"error": "Not connected", "dialogs": []})
     try:

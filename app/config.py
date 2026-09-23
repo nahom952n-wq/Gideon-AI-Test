@@ -57,6 +57,7 @@ class BaseConfig:
     SESSION_COOKIE_HTTPONLY: bool = True
     SESSION_COOKIE_SAMESITE: str = "Lax"
     SESSION_COOKIE_SECURE: bool = os.environ.get("SCHOLARMIND_SECURE_COOKIES", "false").lower() == "true"
+    ADMIN_EMAIL: str | None = os.environ.get("SCHOLARMIND_ADMIN_EMAIL")
     START_BACKGROUND_SERVICES: bool = os.environ.get("SCHOLARMIND_START_BACKGROUND_SERVICES", "true").lower() == "true"
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "connect_args": {"check_same_thread": False},

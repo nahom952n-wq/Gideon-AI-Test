@@ -3,7 +3,7 @@
 from datetime import datetime
 from functools import wraps
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from sqlalchemy import func
 
 from ..extensions import db
@@ -68,10 +68,13 @@ def register():
             flash("An account with that email already exists.", "warning")
             return render_template("auth/register.html")
 
-        # Bootstrap the first local account as admin. Production deployments
-        # should create the owner account before opening registration publicly.
-        is_first_user = User.query.count() == 0
-        user = User(email=email, display_name=display_name, is_admin=is_first_user)
+        # Production admin bootstrap is explicit. Only the configured owner
+        # email receives admin privileges; development keeps first-user convenience.
+        configured_admin = current_app.config.get("ADMIN_EMAIL")
+        is_admin = bool(configured_admin and email == configured_admin.strip().lower())
+        if current_app.config.get("DEBUG", True) and User.query.count() == 0:
+            is_admin = True
+        user = User(email=email, display_name=display_name, is_admin=is_admin)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
