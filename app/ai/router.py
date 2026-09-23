@@ -140,6 +140,7 @@ class AIRouter:
             AIResponse from whichever provider handled the task.
         """
         self._init_providers()
+        prompt = self._validate_prompt(prompt)
 
         provider_name = self._task_map.get(task, "gemini")
         provider = self._providers.get(provider_name)
@@ -200,6 +201,7 @@ class AIRouter:
             AIResponse — annotated with which provider actually ran it.
         """
         self._init_providers()
+        prompt = self._validate_prompt(prompt)
         cfg = current_app.config
         capability_map: dict = dict(cfg.get("CAPABILITY_MAP", {}))
         threshold: float = cfg.get("LOCAL_AI_CONFIDENCE_THRESHOLD", 0.60)
@@ -281,6 +283,16 @@ class AIRouter:
                 "Add a provider in Settings → AI Providers & API Keys or configure .env."
             ),
         )
+
+    def _validate_prompt(self, prompt: str) -> str:
+        """Normalize and bound prompts before sending them to any provider."""
+        if not isinstance(prompt, str):
+            raise TypeError("AI prompt must be a string")
+        prompt = prompt.strip()
+        if not prompt:
+            raise ValueError("AI prompt cannot be empty")
+        max_chars = int(current_app.config.get("AI_MAX_PROMPT_CHARS", 20000))
+        return prompt[:max_chars]
 
     # ------------------------------------------------------------------
     # Confidence evaluation
