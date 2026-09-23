@@ -217,7 +217,7 @@ class AIRouter:
         except Exception as exc:
             log.warning("Could not load saved capability routing: %s", exc)
 
-        valid_provider_names = set(self._providers) | {"local"}
+        valid_provider_names = set(self._providers)
         designated = capability_map.get(capability, "gemini")
         if designated not in valid_provider_names:
             log.warning("Unknown provider '%s' for capability '%s'; using fallback", designated, capability)
@@ -255,7 +255,10 @@ class AIRouter:
                     break
 
         if cloud_provider and cloud_provider.is_available():
-            return cloud_provider.complete(prompt, system=system)
+            response = cloud_provider.complete(prompt, system=system)
+            if response.success:
+                return response
+            log.warning("Provider '%s' failed for capability '%s'; trying fallbacks", cloud_provider.name, capability)
 
         # --- Step 3: Last resort — any available provider ---
         for _name, provider in self._providers.items():
@@ -264,7 +267,9 @@ class AIRouter:
                     "Last-resort routing for capability '%s' to provider '%s'",
                     capability, provider.name,
                 )
-                return provider.complete(prompt, system=system)
+                response = provider.complete(prompt, system=system)
+                if response.success:
+                    return response
 
         return AIResponse(
             text="",
