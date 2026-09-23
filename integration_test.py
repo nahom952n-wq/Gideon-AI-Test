@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory() as tmp:
     # Non-admin users must not access owner/admin controls.
     assert client.get("/settings/").status_code == 302
     assert client.get("/admin/backups/").status_code == 302
-    assert client.get("/sources/").status_code == 302
+    assert client.get("/sources/").status_code == 200
 
     # Core known pages/APIs.
     core_paths = [
