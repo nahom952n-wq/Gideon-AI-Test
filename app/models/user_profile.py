@@ -15,6 +15,7 @@ class UserProfile(db.Model):
     """Personal preferences used to rank scholarships for one user."""
 
     __tablename__ = "user_profile"
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, unique=True, index=True)
