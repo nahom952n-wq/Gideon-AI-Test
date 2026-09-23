@@ -55,8 +55,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "Integration Admin Private" not in second_profile.get_data(as_text=True)
 
     # Non-admin users must not access owner/admin controls.
-    assert client.get("/settings/").status_code == 302
-    assert client.get("/admin/backups/").status_code == 302
+    assert client.get("/settings/").status_code == 403
+    assert client.get("/admin/backups/").status_code == 403
     assert client.get("/sources/").status_code == 200
 
     # Core known pages/APIs.
