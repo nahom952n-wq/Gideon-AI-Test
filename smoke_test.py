@@ -42,6 +42,14 @@ with tempfile.TemporaryDirectory() as tmp:
         router._init_providers()
         assert "grok" in router._providers
         assert router._providers["grok"].model == "grok-2"
+
+        # Gateway safety checks: prompts are bounded and empty prompts are rejected.
+        assert len(router._validate_prompt("x" * 30000)) == app.config["AI_MAX_PROMPT_CHARS"]
+        try:
+            router._validate_prompt("   ")
+            raise AssertionError("empty prompt should be rejected")
+        except ValueError:
+            pass
         assert ApiKeySetting.get("__routing__", "capability_map")
 
         clear_response = client.post("/settings/api-keys/clear", data={"provider": "grok"})
