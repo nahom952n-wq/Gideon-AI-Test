@@ -119,7 +119,7 @@ def toggle(source_id: int):
 @bp.route("/<int:source_id>/delete", methods=["POST"])
 @login_required
 def delete(source_id: int):
-    source = Source.query.get_or_404(source_id)
+    source = Source.query.filter_by(id=source_id, user_id=current_user().id).first_or_404()
     name = source.name
 
     raw_items = RawItem.query.filter_by(source_id=source.id).all()
@@ -250,7 +250,7 @@ def sync_all():
 @login_required
 def telegram_setup():
     from ..services.telegram_service import get_service
-    tg_service = get_service()
+    tg_service = get_service(current_user().id)
     tg_configured = bool(
         current_app.config.get("TELEGRAM_API_ID")
         and current_app.config.get("TELEGRAM_API_HASH")
@@ -278,10 +278,10 @@ def telegram_send_code():
         return redirect(url_for("sources.telegram_setup"))
 
     from ..services.telegram_service import get_service, reset_service
-    reset_service()
+    reset_service(current_user().id)
     session.pop("tg_2fa_required", None)
     session.pop("tg_password_hint", None)
-    service = get_service()
+    service = get_service(current_user().id)
     if not service:
         flash("Telegram API credentials are not configured. Add them in Settings → Telegram Credentials first.", "danger")
         return redirect(url_for("sources.telegram_setup"))
@@ -379,7 +379,7 @@ def telegram_disconnect():
     service = get_service()
     if service:
         service.disconnect()
-    reset_service()
+    reset_service(current_user().id)
     session.pop("tg_phone", None)
     session.pop("tg_phone_code_hash", None)
     session.pop("tg_phone_sent", None)
