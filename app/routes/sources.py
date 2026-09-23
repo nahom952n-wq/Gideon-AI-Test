@@ -314,7 +314,7 @@ def telegram_verify():
         TelegramTwoFactorRequired,
         get_service,
     )
-    service = get_service()
+    service = get_service(current_user().id)
     if not service:
         flash("Telegram service unavailable.", "danger")
         return redirect(url_for("sources.telegram_setup"))
@@ -352,7 +352,7 @@ def telegram_verify_password():
         return redirect(url_for("sources.telegram_setup"))
 
     from ..services.telegram_service import get_service
-    service = get_service()
+    service = get_service(current_user().id)
     if not service:
         flash("Telegram service unavailable.", "danger")
         return redirect(url_for("sources.telegram_setup"))
@@ -376,7 +376,7 @@ def telegram_verify_password():
 @login_required
 def telegram_disconnect():
     from ..services.telegram_service import get_service, reset_service
-    service = get_service()
+    service = get_service(current_user().id)
     if service:
         service.disconnect()
     reset_service(current_user().id)
@@ -398,7 +398,7 @@ def telegram_disconnect():
 @login_required
 def telegram_status():
     from ..services.telegram_service import get_service
-    service = get_service()
+    service = get_service(current_user().id)
     configured = bool(
         current_app.config.get("TELEGRAM_API_ID")
         and current_app.config.get("TELEGRAM_API_HASH")
@@ -417,7 +417,7 @@ def telegram_dialogs():
     Used by the sources UI to let the user browse and select chats.
     """
     from ..services.telegram_service import get_service
-    service = get_service()
+    service = get_service(current_user().id)
     if not service or not service.is_connected():
         return jsonify({"error": "Not connected", "dialogs": []})
     try:
