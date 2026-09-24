@@ -8,7 +8,6 @@ from ..models import ChatSession, ChatMessage
 from ..extensions import db
 from ..services.chat_service import ChatService
 from .auth import login_required, current_user
-from .auth import login_required, current_user
 
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 log = logging.getLogger("scholarmind.app")
@@ -90,7 +89,7 @@ def send():
     user_msg = ChatMessage(session_id=session.id, role="user", content=user_message)
     db.session.add(user_msg)
 
-    response_text, source = chat_service.respond(user_message, session.id)
+    response_text, source = chat_service.respond(user_message, session.id, current_user().id)
 
     assistant_msg = ChatMessage(
         session_id=session.id, role="assistant", content=response_text, source=source
