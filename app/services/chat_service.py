@@ -14,7 +14,7 @@ This ensures:
 
 import logging
 from ..models import ChatMessage
-from ..ai.router import AIRouter
+from ..ai.gateway import AIGateway, AIRequest
 from ..ai.prompts import CHAT_SYSTEM, CHAT_PROMPT_TEMPLATE
 
 log = logging.getLogger("scholarmind.ai")
@@ -39,9 +39,9 @@ class ChatService:
     """
 
     def __init__(self) -> None:
-        self._router = AIRouter()
+        self._gateway = AIGateway()
 
-    def respond(self, user_message: str, session_id: int) -> tuple[str, str]:
+    def respond(self, user_message: str, session_id: int, user_id: int | None = None) -> tuple[str, str]:
         """
         Generate a response for a user message.
 
@@ -74,7 +74,7 @@ class ChatService:
 
         # Use custom system prompt that instructs AI to act as semantic search engine
         system_prompt = self._build_system_prompt(has_context=bool(context))
-        response = self._router.route("chat", prompt, system=system_prompt)
+        response = self._gateway.complete(AIRequest(prompt=prompt, system=system_prompt, capability="chat", user_id=user_id))
 
         if not response.success:
             log.error("Chat AI call failed: %s", response.error)
